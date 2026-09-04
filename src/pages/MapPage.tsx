@@ -15,7 +15,7 @@ import {
   BUDGET_ASSUMPTIONS,
   hitFromOrigin,
 } from '@/features/reachability/reachabilityService';
-import type { Journey } from '@/features/reachability/types';
+import type { Journey, TravelMode } from '@/features/reachability/types';
 import { linesForStop } from '@/shared/data/adapters/gtfsAdapter';
 
 // Epic3
@@ -32,22 +32,33 @@ import {
 } from '@/features/first-mile';
 
 import {MapAnalysisPanel,type MapAnalysisTab,} from './components/MapAnalysisPanel';
+import { useMapServices } from './components/useMapServices';
 
 /** One shared empty array, so "no stops yet" keeps a stable identity between renders. */
 const NO_STOPS: FirstMileStopResult[] = [];
 
+const TRAVEL_MODES: [TravelMode, string][] = [
+  ['multimodal', 'Walking + transit'],
+  ['walking', 'Walking only'],
+  ['transit', 'Public transport'],
+];
+
 interface MapPageProps {
   journey: Journey;
   onToast: (message: string, icon?: string) => void;
+  /** Which analysis tab is open. Controlled, so the navigation can open one directly. */
+  analysisTab: MapAnalysisTab;
+  onAnalysisTabChange: (tab: MapAnalysisTab) => void;
 }
 
-export function MapPage({ journey, onToast }: MapPageProps) {
+export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: MapPageProps) {
   const [configOpen, setConfigOpen] = useState(true);
   const reach = useReachability({
     origin: journey.origin,
     onOriginChange: journey.onOriginChange,
     timeBudget: journey.timeBudget,
     onTimeBudgetChange: journey.onTimeBudgetChange,
+    travelMode: journey.travelMode,
     onToast,
   });
   const firstMile = useFirstMile(reach.origin?.at ?? null, reach.timeBudget,);
@@ -71,7 +82,14 @@ export function MapPage({ journey, onToast }: MapPageProps) {
     () => busStopsNearAccessibleStations(accessibleStops),
     [accessibleStops],
   );
-  const [analysisTab, setAnalysisTab,] = useState<MapAnalysisTab>('first-mile');
+
+  // Computed only while its tab is open — see the note in useMapServices.
+  const services = useMapServices(
+    reach.origin?.at ?? null,
+    journey.timeBudget,
+    journey.travelMode,
+    analysisTab === 'services',
+  );
 
   return (
     // top-16 rather than pt-16: an absolutely positioned child resolves inset-0 against
@@ -90,6 +108,9 @@ export function MapPage({ journey, onToast }: MapPageProps) {
           onMapClick={
             reach.selectPoint
           }
+          services={services.displayed}
+          selectedServiceId={services.selected?.id ?? null}
+          onServiceSelect={services.select}
         >
           {firstMile.state.status ===
             'ready' && (
@@ -147,11 +168,13 @@ export function MapPage({ journey, onToast }: MapPageProps) {
         onRetryReachability={
           reach.retry
         }
+        services={services}
+        hasOrigin={Boolean(reach.origin)}
         activeTab={
           analysisTab
         }
         onTabChange={
-          setAnalysisTab
+          onAnalysisTabChange
         }
       />
 
@@ -224,6 +247,31 @@ export function MapPage({ journey, onToast }: MapPageProps) {
                   <BudgetCompositionHelp />
                 </div>
                 <TimeBudgetSelector value={reach.timeBudget} onChange={reach.changeTimeBudget} />
+              </div>
+
+              {/* One mode for the whole screen: the drawn area and the services listed
+                  beside it are computed from the same setting, so they cannot describe
+                  different journeys. */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Travel mode</label>
+                <div
+                  role="radiogroup"
+                  aria-label="Travel mode"
+                  className="flex flex-wrap items-center gap-1.5 p-1 glass-chip rounded-xl"
+                >
+                  {TRAVEL_MODES.map(([mode, label]) => (
+                    <button
+                      key={mode}
+                      role="radio"
+                      aria-checked={journey.travelMode === mode}
+                      onClick={() => journey.onTravelModeChange(mode)}
+                      className={`chip whitespace-nowrap ${journey.travelMode === mode ? 'chip-selected' : 'chip-unselected'}`}
+                      style={{ padding: '5px 10px', fontSize: 11 }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="pt-2 border-t border-slate-200/70">

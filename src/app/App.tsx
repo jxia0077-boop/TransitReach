@@ -6,7 +6,7 @@ import { ToastContainer, PageTransition } from '@/shared/ui';
 import { useToasts } from '@/shared/hooks';
 import { LandingPage } from '@/pages/LandingPage';
 import { MapPage } from '@/pages/MapPage';
-import { ServicesPage } from '@/pages/ServicesPage';
+import type { MapAnalysisTab } from '@/pages/components/MapAnalysisPanel';
 import { TimeComparisonPage } from '@/pages/future/TimeComparisonPage';
 import { ScenarioPage } from '@/pages/future/ScenarioPage';
 import { TypologyPage } from '@/pages/future/TypologyPage';
@@ -33,12 +33,25 @@ function App() {
   const [origin, setOrigin] = useState<Origin | null>(null);
   const [timeBudget, setTimeBudget] = useState(DEFAULT_TIME_BUDGET);
   const [travelMode, setTravelMode] = useState<TravelMode>('multimodal');
+  const [analysisTab, setAnalysisTab] = useState<MapAnalysisTab>('first-mile');
   const { toasts, addToast, removeToast } = useToasts();
 
+  /**
+   * "Services" is a view of the map, not a separate screen.
+   *
+   * It used to be its own page with its own map, search box and origin, which is how a
+   * user could end up reading one location's services while the map beside it described
+   * another. Selecting it now opens the map with the Services tab active: same map, same
+   * starting point, and the feature keeps a name in the navigation.
+   */
   const handleNavigate = (page: PageId) => {
+    if (page === 'services') setAnalysisTab('services');
+    else if (page === 'map' && analysisTab === 'services') setAnalysisTab('first-mile');
     setActivePage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const showsMap = activePage === 'map' || activePage === 'services';
 
   /** AC 1.5.2 — a landing-page selection becomes the starting point for every screen. */
   const handleSearchSelect = (hit: SearchHit) => setOrigin(originFromHit(hit));
@@ -56,12 +69,20 @@ function App() {
     <div className="min-h-screen bg-[#F7FAFC]">
       <NavBar items={VISIBLE_NAV_ITEMS} activePage={activePage} onNavigate={handleNavigate} />
 
-      <PageTransition pageKey={activePage}>
+      {/* Map and Services are the same screen, so they share a transition key and the map
+          is not torn down and recomputed when the user switches between them. */}
+      <PageTransition pageKey={showsMap ? 'map' : activePage}>
         {activePage === 'landing' && (
           <LandingPage onNavigate={handleNavigate} onSearchSelect={handleSearchSelect} />
         )}
-        {activePage === 'map' && <MapPage journey={journey} onToast={addToast} />}
-        {activePage === 'services' && <ServicesPage journey={journey} />}
+        {showsMap && (
+          <MapPage
+            journey={journey}
+            onToast={addToast}
+            analysisTab={analysisTab}
+            onAnalysisTabChange={setAnalysisTab}
+          />
+        )}
         {activePage === 'time' && <TimeComparisonPage journey={journey} />}
         {activePage === 'scenario' && <ScenarioPage />}
         {activePage === 'typology' && <TypologyPage />}

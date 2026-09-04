@@ -22,6 +22,9 @@ import {
   getDataBasis,
 } from '@/features/reachability/reachabilityService';
 
+import { MapServicesContent } from './MapServicesContent';
+import type { MapServicesModel } from './useMapServices';
+
 export type MapAnalysisTab =
   | 'reachability'
   | 'first-mile'
@@ -37,6 +40,10 @@ interface MapAnalysisPanelProps {
   onSelectStop: (stopId: string) => void;
 
   onRetryReachability: () => void;
+
+  /** Essential-services coverage for the same origin (Epic 5), shown in its own tab. */
+  services: MapServicesModel;
+  hasOrigin: boolean;
 
   activeTab: MapAnalysisTab;
   onTabChange: (tab: MapAnalysisTab) => void;
@@ -60,17 +67,17 @@ export function MapAnalysisPanel({
   selectedStopId,
   onSelectStop,
   onRetryReachability,
+  services,
+  hasOrigin,
   activeTab,
   onTabChange,
 }: MapAnalysisPanelProps) {
   const [helpOpen, setHelpOpen] = useState(false);
 
-  if (
-    reachState.status === 'idle' &&
-    firstMileState.status === 'idle'
-  ) {
-    return null;
-  }
+  // The panel stays mounted with no starting point chosen. Hiding it left a first-time
+  // visitor looking at a bare map with nothing telling them what to do, and made the
+  // Services tab unreachable from the navigation until an origin happened to exist.
+  // Every tab below renders its own idle state.
 
   return (
     <div className="absolute top-4 right-4 sm:right-6 z-[500] w-[360px] max-w-[calc(100vw-2rem)]">
@@ -89,6 +96,17 @@ export function MapAnalysisPanel({
         <div className="p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
+
+              {reachState.status === 'idle' && (
+                <div className="py-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    No starting point yet
+                  </div>
+                  <div className="text-sm text-slate-600 mt-0.5">
+                    Search or tap the map to begin
+                  </div>
+                </div>
+              )}
 
               {reachState.status === 'computing' && (
                 <div className="flex items-center gap-2 py-2">
@@ -219,10 +237,10 @@ export function MapAnalysisPanel({
 
             <AnalysisTabButton
               label="Services"
-              active={false}
-              disabled
-              soon
-              onClick={() => {}}
+              active={activeTab === 'services'}
+              onClick={() =>
+                onTabChange('services')
+              }
             />
 
             <AnalysisTabButton
@@ -252,6 +270,13 @@ export function MapAnalysisPanel({
               thresholdMinutes={timeBudget}
               selectedStopId={selectedStopId}
               onSelectStop={onSelectStop}
+            />
+          )}
+
+          {activeTab === 'services' && (
+            <MapServicesContent
+              model={services}
+              hasOrigin={hasOrigin}
             />
           )}
         </div>
