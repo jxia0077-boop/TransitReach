@@ -4,11 +4,10 @@ import { BaseMap, LocationSearch, TimeBudgetSelector } from '@/features/reachabi
 import { hitFromOrigin, isInStudyArea, originFromHit } from '@/features/reachability/reachabilityService';
 import { CATEGORY_META, CATEGORY_ORDER } from '@/shared/data';
 import { loadEssentialServices } from '@/shared/data/adapters/essentialServicesAdapter';
-import { loadRailStops } from '@/shared/data/adapters/gtfsAdapter';
 import { computeReachability, type IsochroneResult, type TravelMode } from '@/shared/data/adapters/routingAdapter';
 import { deduplicateServices } from '@/features/essential-services';
 import type { ServiceLocation } from '@/shared/types/service';
-import type { Origin } from '@/features/reachability/types';
+import type { Journey, Origin } from '@/features/reachability/types';
 
 type CoverageState = { status: 'idle' | 'loading' | 'ready' | 'error'; result: IsochroneResult | null; services: ServiceLocation[]; error: string | null };
 const FEED_START = '2019-01-01T00:00';
@@ -29,11 +28,6 @@ function formatTimeLabel(value: string): string {
   return `${weekday} ${clock}`;
 }
 
-function defaultOrigin(): Origin | null {
-  const stop = loadRailStops().find(item => /pasar seni/i.test(item.name)) ?? loadRailStops()[0];
-  return stop ? { at: { lat: stop.lat, lon: stop.lon }, source: 'stop', stop } : null;
-}
-
 function isInside(service: ServiceLocation, result: IsochroneResult | null): boolean {
   if (!result || service.lat === undefined || service.lon === undefined) return false;
   return result.regions.some(region => pointInRing(service.lat!, service.lon!, region.outer) && !region.holes.some(hole => pointInRing(service.lat!, service.lon!, hole)));
@@ -48,10 +42,12 @@ function pointInRing(lat: number, lon: number, ring: [number, number][]) {
   return inside;
 }
 
-export function TimeComparisonPage() {
-  const [origin, setOrigin] = useState<Origin | null>(defaultOrigin);
-  const [budget, setBudget] = useState(30);
-  const [travelMode, setTravelMode] = useState<TravelMode>('multimodal');
+export function TimeComparisonPage({ journey }: { journey: Journey }) {
+  // Shared with the rest of the app; only the two departure times belong to this screen.
+  const { origin, timeBudget: budget, travelMode } = journey;
+  const setOrigin = journey.onOriginChange;
+  const setBudget = journey.onTimeBudgetChange;
+  const setTravelMode = journey.onTravelModeChange;
   const [times, setTimes] = useState<[string, string]>(DEFAULT_TIMES);
   const [left, setLeft] = useState<CoverageState>({ status: 'idle', result: null, services: [], error: null });
   const [right, setRight] = useState<CoverageState>({ status: 'idle', result: null, services: [], error: null });

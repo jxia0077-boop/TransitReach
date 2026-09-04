@@ -16,7 +16,7 @@ const LOCATION_UNAVAILABLE = 'Location unavailable. Search for a stop or tap the
 const LOCATION_OUTSIDE_AREA = 'Your location is outside the covered area';
 
 /** AC 1.2.1 — 30 min is selected before any starting point has been chosen. */
-const DEFAULT_TIME_BUDGET = 30;
+export const DEFAULT_TIME_BUDGET = 30;
 
 /**
  * The reachable area's lifecycle.
@@ -34,13 +34,30 @@ export type ReachabilityState =
   /** Exceeded the time limit. AC 1.3.2 requires this to read distinctly from a failure. */
   | { status: 'timedout'; budgetMinutes: number; limitMs: number };
 
-export function useReachability(
-  /** AC 1.5.2 — a starting point carried in from the landing page, already resolved. */
-  initialOrigin: Origin | null,
-  onToast: (message: string, icon?: string) => void,
-) {
-  const [origin, setOrigin] = useState<Origin | null>(initialOrigin);
-  const [timeBudget, setTimeBudget] = useState(DEFAULT_TIME_BUDGET);
+export interface ReachabilityOptions {
+  /**
+   * The starting point, owned by the application rather than by this hook.
+   *
+   * It was previously local state here, which meant the map, the services screen and the
+   * comparison screen each held a different origin: choosing a location on one left the
+   * others silently describing somewhere else. Controlling it from above is what makes
+   * one chosen location follow the user through the app.
+   */
+  origin: Origin | null;
+  onOriginChange: (origin: Origin | null) => void;
+  timeBudget: number;
+  onTimeBudgetChange: (minutes: number) => void;
+  onToast: (message: string, icon?: string) => void;
+}
+
+export function useReachability({
+  origin,
+  onOriginChange,
+  timeBudget,
+  onTimeBudgetChange,
+  onToast,
+}: ReachabilityOptions) {
+  const setOrigin = onOriginChange;
   const [state, setState] = useState<ReachabilityState>({ status: 'idle' });
 
   // Guards against a superseded result ever reaching the screen. Every run takes a
@@ -155,7 +172,7 @@ export function useReachability(
   const clearOrigin = () => setOrigin(null);
 
   /** AC 1.1.5 / AC 1.2.2 — the budget survives a change of starting point, and vice versa. */
-  const changeTimeBudget = (minutes: number) => setTimeBudget(minutes);
+  const changeTimeBudget = (minutes: number) => onTimeBudgetChange(minutes);
 
   /** AC 1.3.2 — re-runs the same settings without the user re-entering anything. */
   const retry = () => {

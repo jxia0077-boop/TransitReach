@@ -4,25 +4,36 @@ import { BaseMap, LocationSearch, TimeBudgetSelector } from '@/features/reachabi
 import { hitFromOrigin, originFromHit, isInStudyArea } from '@/features/reachability/reachabilityService';
 import { ServiceDetail, ServiceFilters, ServiceList, ServiceSummary, useRealEssentialServices } from '@/features/essential-services';
 import { loadEssentialServicesMetadata } from '@/shared/data/adapters/essentialServicesAdapter';
-import { loadRailStops } from '@/shared/data/adapters/gtfsAdapter';
-import { DEPARTURE_TIME, type TravelMode } from '@/shared/data/adapters/routingAdapter';
+import { DEPARTURE_TIME } from '@/shared/data/adapters/routingAdapter';
 import { CATEGORY_ORDER } from '@/shared/data';
-import type { Origin } from '@/features/reachability/types';
+import type { Journey, Origin } from '@/features/reachability/types';
 import type { ServiceCategory } from '@/shared/types/service';
 
-const DEFAULT_BUDGET = 30;
+/**
+ * Categories shown before the user chooses.
+ *
+ * "Food & Meals" is off by default, not removed — it is 9,013 of the 19,406 records and
+ * 65% of everything drawn at a typical origin, so with it on, seven hospitals and thirty
+ * pharmacies are invisible under restaurant markers. The epic defines essential services
+ * as groceries, healthcare, parks and public services; restaurants are one tap away for
+ * anyone who wants them.
+ */
+const DEFAULT_CATEGORIES: ServiceCategory[] = CATEGORY_ORDER.filter(
+  category => category !== 'food',
+);
 
-function defaultOrigin(): Origin | null {
-  const stop = loadRailStops().find(item => /pasar seni/i.test(item.name)) ?? loadRailStops()[0];
-  return stop ? { at: { lat: stop.lat, lon: stop.lon }, source: 'stop', stop } : null;
-}
-
-export function ServicesPage() {
-  const [origin, setOrigin] = useState<Origin | null>(defaultOrigin);
-  const [budget, setBudget] = useState(DEFAULT_BUDGET);
-  const [travelMode, setTravelMode] = useState<TravelMode>('multimodal');
+export function ServicesPage({ journey }: { journey: Journey }) {
+  // Origin, budget and mode come from the application, not from here. This screen used to
+  // default to Pasar Seni, so a user who had chosen an outer suburb was silently shown
+  // central Kuala Lumpur's services with nothing on screen to contradict it.
+  const { origin, timeBudget: budget, travelMode } = journey;
+  const setOrigin = journey.onOriginChange;
+  const setBudget = journey.onTimeBudgetChange;
+  const setTravelMode = journey.onTravelModeChange;
   const [search, setSearch] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<Set<ServiceCategory>>(new Set(CATEGORY_ORDER));
+  const [selectedCategories, setSelectedCategories] = useState<Set<ServiceCategory>>(
+    () => new Set(DEFAULT_CATEGORIES),
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const data = useRealEssentialServices(origin?.at ?? null, budget, travelMode, DEPARTURE_TIME);
   const metadata = loadEssentialServicesMetadata();
@@ -88,6 +99,7 @@ export function ServicesPage() {
           </div>
         </div>
 
+        {!origin && <StatusMessage text="Choose a starting point above to see the essential services reachable from it." />}
         {data.status === 'loading' && <StatusMessage text="Loading OSM services and calculating the reachable area with OTP…" />}
         {data.status === 'error' && <StatusMessage text={`Unable to calculate real coverage: ${data.error}`} error />}
 

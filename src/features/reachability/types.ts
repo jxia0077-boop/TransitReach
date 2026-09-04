@@ -1,5 +1,6 @@
 import type { RailStop } from '@/shared/data/adapters/gtfsAdapter';
 import type { OsmPlace } from '@/shared/data/adapters/osmAdapter';
+import type { TravelMode } from '@/shared/data/adapters/routingAdapter';
 
 /**
  * A real-world position. Distinct from the prototype's MapPoint {x, y}, which is a
@@ -26,4 +27,20 @@ export interface Origin {
   place?: OsmPlace;
 }
 
-export type { RailStop, OsmPlace };
+/**
+ * The choices a user makes once and carries through the app: where they are starting from,
+ * how long they are willing to travel, and by what means.
+ *
+ * Held by App and passed to every screen that shows a result, so no screen can quietly
+ * describe a different place from the one on screen next door.
+ */
+export interface Journey {
+  origin: Origin | null;
+  onOriginChange: (origin: Origin | null) => void;
+  timeBudget: number;
+  onTimeBudgetChange: (minutes: number) => void;
+  travelMode: TravelMode;
+  onTravelModeChange: (mode: TravelMode) => void;
+}
+
+export type { RailStop, OsmPlace, TravelMode };
