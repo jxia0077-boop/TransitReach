@@ -22,7 +22,10 @@ export const CATEGORY_META: Record<ServiceCategory, ServiceCategoryMeta> = {
   market:     { id: 'market',    label: 'Markets',         icon: ShoppingBag,    color: '#10b981', colorLight: '#d1fae5' },
   govt:       { id: 'govt',      label: 'Government',     icon: Building2,      color: '#6366f1', colorLight: '#e0e7ff' },
   park:       { id: 'park',      label: 'Parks',           icon: Trees,          color: '#22c55e', colorLight: '#dcfce7' },
-  bank:       { id: 'bank',      label: 'Banks & ATMs',    icon: Banknote,       color: '#14b8a6', colorLight: '#ccfbf1' },
+  // Bronze, not teal-500. At #14b8a6 this sat one step from the reachable area's old
+  // teal, so a bank dot over the area fill was all but invisible. Teal now belongs to
+  // the user's own position and route, and no category may take it.
+  bank:       { id: 'bank',      label: 'Banks & ATMs',    icon: Banknote,       color: '#a16207', colorLight: '#fef3c7' },
   police:     { id: 'police',    label: 'Police',          icon: ShieldCheck,    color: '#3b82f6', colorLight: '#dbeafe' },
   childcare:  { id: 'childcare', label: 'Childcare',       icon: Baby,           color: '#ec4899', colorLight: '#fce7f3' },
   food:       { id: 'food',       label: 'Food & Meals',    icon: Utensils,       color: '#f97316', colorLight: '#ffedd5' },
