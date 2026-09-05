@@ -7,6 +7,7 @@ import {
   Pill,
   Trees,
   Banknote,
+  Store,
   ShieldCheck,
   Baby,
   Utensils,
@@ -20,6 +21,9 @@ export const CATEGORY_META: Record<ServiceCategory, ServiceCategoryMeta> = {
   pharmacy:   { id: 'pharmacy',  label: 'Pharmacies',     icon: Pill,           color: '#8b5cf6', colorLight: '#ede9fe' },
   school:     { id: 'school',    label: 'Schools',        icon: GraduationCap,  color: '#f59e0b', colorLight: '#fef3c7' },
   market:     { id: 'market',    label: 'Markets',         icon: ShoppingBag,    color: '#10b981', colorLight: '#d1fae5' },
+  // Its own chip rather than a share of Markets: a mall is a destination people name and
+  // go looking for, and folded into "Markets" it was findable only by accident.
+  mall:       { id: 'mall',      label: 'Malls',           icon: Store,          color: '#c026d3', colorLight: '#fae8ff' },
   govt:       { id: 'govt',      label: 'Government',     icon: Building2,      color: '#6366f1', colorLight: '#e0e7ff' },
   park:       { id: 'park',      label: 'Parks',           icon: Trees,          color: '#22c55e', colorLight: '#dcfce7' },
   // Bronze, not teal-500. At #14b8a6 this sat one step from the reachable area's old
@@ -33,7 +37,7 @@ export const CATEGORY_META: Record<ServiceCategory, ServiceCategoryMeta> = {
 };
 
 export const CATEGORY_ORDER: ServiceCategory[] = [
-  'hospital', 'clinic', 'pharmacy', 'school', 'market', 'govt', 'park', 'bank', 'police', 'childcare', 'food',
+  'hospital', 'clinic', 'pharmacy', 'school', 'market', 'mall', 'govt', 'park', 'bank', 'police', 'childcare', 'food',
   'other',
 ];
 

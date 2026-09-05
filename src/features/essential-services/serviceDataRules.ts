@@ -10,7 +10,9 @@ export function categoryFromOsmTag(sourceCategory: string): ServiceCategory {
   if (tag.includes('clinic') || tag.includes('doctors') || tag.includes('doctor')) return 'clinic';
   if (tag.includes('pharmacy')) return 'pharmacy';
   if (tag.includes('school') || tag.includes('college') || tag.includes('university') || tag.includes('kindergarten')) return 'school';
-  if (tag.includes('marketplace') || tag.includes('supermarket') || tag.includes('convenience') || tag.includes('mall') || tag.includes('grocery')) return 'market';
+  // Before the market rule, which matches 'mall' as a substring and would swallow it.
+  if (tag.includes('mall')) return 'mall';
+  if (tag.includes('marketplace') || tag.includes('supermarket') || tag.includes('convenience') || tag.includes('grocery')) return 'market';
   if (tag.includes('government') || tag.includes('townhall')) return 'govt';
   if (tag.includes('park') || tag.includes('garden') || tag.includes('playground')) return 'park';
   if (tag.includes('bank') || tag.includes('atm')) return 'bank';

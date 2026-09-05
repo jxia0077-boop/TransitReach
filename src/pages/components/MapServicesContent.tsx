@@ -62,12 +62,15 @@ export function MapServicesContent({
         </div>
       </div>
 
+      {/* Searches the category as well as the name, so "pharmacy" works when you do not
+          know what your nearest pharmacy is called. */}
       <div className="glass-input flex items-center gap-2 px-3 py-2">
         <Search size={14} className="text-slate-400" />
         <input
           value={model.search}
           onChange={event => model.setSearch(event.target.value)}
-          placeholder="Search service name…"
+          placeholder="Search a service or category…"
+          aria-label="Search services by name or category"
           className="flex-1 bg-transparent outline-none text-sm font-medium text-slate-700 placeholder:text-slate-400"
         />
       </div>
@@ -79,24 +82,47 @@ export function MapServicesContent({
         compact
       />
 
-      {/* The headline counts everything reachable; the list counts what passed the
-          filters. Saying so keeps the two numbers from looking like a contradiction. */}
-      {model.displayed.length < model.reachableCount && (
+      {/*
+        Nothing is drawn until the reader asks for something, so the panel has to say so.
+        This is a prompt, not an empty state: there is no failure to explain and nothing
+        to widen — the question simply has not been asked yet.
+      */}
+      {model.awaitingChoice ? (
         <p className="text-[11px] text-slate-500 leading-snug">
-          {(model.reachableCount - model.displayed.length).toLocaleString()} of these are
-          hidden by the filters above.
+          Choose a category above, or search, to see what is in reach. Nothing is shown
+          by default — {model.reachableCount.toLocaleString()} services at once is more
+          than a map can say anything useful with.
         </p>
+      ) : (
+        /* The headline counts everything reachable; the list counts what passed the
+           filters. Saying so keeps the two numbers from looking like a contradiction.
+
+           Deliberately not phrased as "Showing X of Y": ServiceList prints its own
+           "Showing 25 of 25 services" directly below, counting what matched rather than
+           what is reachable. Two adjacent sentences opening the same way with different
+           denominators read as a contradiction even when both are right. */
+        model.displayed.length < model.reachableCount && (
+          <p className="text-[11px] text-slate-500 leading-snug">
+            {(model.reachableCount - model.displayed.length).toLocaleString()} of these are
+            hidden by the filters above.
+          </p>
+        )
       )}
 
       {model.selected && <ServiceDetail service={model.selected} />}
 
-      <ServiceList
-        services={model.displayed}
-        hoveredService={null}
-        selectedService={model.selected}
-        onHover={() => undefined}
-        onSelect={model.select}
-      />
+      {/* Suppressed while awaiting a choice: ServiceList's empty state reads "No services
+          found — try a longer travel time", which would contradict the prompt above by
+          blaming the budget for a list the reader has not asked for yet. */}
+      {!model.awaitingChoice && (
+        <ServiceList
+          services={model.displayed}
+          hoveredService={null}
+          selectedService={model.selected}
+          onHover={() => undefined}
+          onSelect={model.select}
+        />
+      )}
     </div>
   );
 }
