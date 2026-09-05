@@ -28,6 +28,7 @@ import {
   busStopsNearAccessibleStations,
   useFirstMile,
   useLiveTransit,
+  DEFAULT_FIRST_MILE_THRESHOLD_MINUTES,
   type FirstMileStopResult,
 } from '@/features/first-mile';
 
@@ -54,7 +55,13 @@ export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: 
     onTimeBudgetChange: journey.onTimeBudgetChange,
     onToast,
   });
-  const firstMile = useFirstMile(reach.origin?.at ?? null, reach.timeBudget,);
+  // The walk gets its own limit, not the journey budget. Passing the budget in here meant
+  // a 45-minute journey was read as a willingness to walk 45 minutes to a station, and the
+  // panel listed every station inside that radius as "accessible".
+  const firstMile = useFirstMile(
+    reach.origin?.at ?? null,
+    DEFAULT_FIRST_MILE_THRESHOLD_MINUTES,
+  );
 
   // Memoised, and falling back to a module-level constant rather than a fresh []. A new
   // array literal here is a new identity on every render, and this value is a dependency
@@ -148,8 +155,8 @@ export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: 
         firstMileState={
           firstMile.state
         }
-        timeBudget={
-          reach.timeBudget
+        walkThresholdMinutes={
+          DEFAULT_FIRST_MILE_THRESHOLD_MINUTES
         }
         selectedStopId={
           firstMile.selectedStopId

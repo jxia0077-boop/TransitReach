@@ -31,7 +31,12 @@ export type MapAnalysisTab =
 interface MapAnalysisPanelProps {
   reachState: ReachabilityState;
   firstMileState: FirstMileState;
-  timeBudget: number;
+  /**
+   * The first-mile walking limit — not the journey budget, which the headline above
+   * reports. Named for what it is, because the two were the same value and should
+   * never have been.
+   */
+  walkThresholdMinutes: number;
 
   selectedStopId: string | null;
   onSelectStop: (stopId: string) => void;
@@ -67,7 +72,7 @@ interface MapAnalysisPanelProps {
 export function MapAnalysisPanel({
   reachState,
   firstMileState,
-  timeBudget,
+  walkThresholdMinutes,
   selectedStopId,
   onSelectStop,
   onRetryReachability,
@@ -316,7 +321,7 @@ export function MapAnalysisPanel({
           {activeTab === 'first-mile' && (
             <NearbyStopsPanel
               state={firstMileState}
-              thresholdMinutes={timeBudget}
+              thresholdMinutes={walkThresholdMinutes}
               selectedStopId={selectedStopId}
               onSelectStop={onSelectStop}
             />
