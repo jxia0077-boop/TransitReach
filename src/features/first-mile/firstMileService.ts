@@ -178,7 +178,8 @@ export async function computeFirstMileAccess(
 
   // AC 3.2.2 — neutral ordering, not fastest/closest/recommended.
   routed.sort((a, b) =>
-    a.stop.name.localeCompare(b.stop.name),
+    a.route.distanceMeters -
+    b.route.distanceMeters
   );
 
   return {

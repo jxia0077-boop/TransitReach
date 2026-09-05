@@ -51,7 +51,17 @@ export function MapPage({ initialLocation, onToast }: MapPageProps) {
       firstMile.state.status ===
         'ready',
     );
-  const nearbyBusStops = busStopsNearAccessibleStations(accessibleStops,);
+  const reachableRegions =
+  reach.state.status ===
+  'ready'
+    ? reach.state.result.regions
+    : [];
+
+  const nearbyBusStops =
+    busStopsNearAccessibleStations(
+      accessibleStops,
+      reachableRegions,
+    );
   const [analysisTab, setAnalysisTab,] = useState<MapAnalysisTab>('first-mile');
 
   return (

@@ -18,8 +18,9 @@ interface NearbyStopsPanelProps {
   state: FirstMileState;
   thresholdMinutes: number;
   selectedStopId: string | null;
+
   onSelectStop: (
-    stopId: string,
+    stopId: string | null,
   ) => void;
 }
 
@@ -140,7 +141,9 @@ export function NearbyStopsPanel({
                     type="button"
                     onClick={() =>
                       onSelectStop(
-                        result.stop.stopId,
+                        selected
+                          ? null
+                          : result.stop.stopId,
                       )
                     }
                     className={`w-full text-left rounded-xl border p-3 transition ${
