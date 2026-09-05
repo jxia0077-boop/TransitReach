@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Search, MapPin, Train, Building2, GraduationCap, Landmark, Plane, ShoppingBag, Stethoscope,
 } from 'lucide-react';
@@ -43,9 +43,21 @@ interface LocationSearchProps {
 }
 
 export function LocationSearch({ onSelect, selected, compact = false }: LocationSearchProps) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(selected ? hitName(selected) : '');
   const [focused, setFocused] = useState(false);
   const [highlightedIdx, setHighlightedIdx] = useState(-1);
+
+  // The starting point is shared across screens, so it can change without this field being
+  // touched. Reflecting it means every screen names the location its numbers describe,
+  // instead of showing an empty box beside results for somewhere the user cannot see.
+  //
+  // Clearing on null matters as much as setting on a name: an origin picked by tapping the
+  // map has no name, and leaving the last station's name in the box would label the result
+  // with a place it did not come from.
+  const selectedName = selected ? hitName(selected) : null;
+  useEffect(() => {
+    setQuery(selectedName ?? '');
+  }, [selectedName]);
 
   const stops = useMemo(() => loadRailStops(), []);
   const places = useMemo(() => loadPlaces(), []);

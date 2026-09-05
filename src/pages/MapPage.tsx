@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {CircleHelp, Crosshair, Maximize2, Minimize2, X,} from 'lucide-react';import { Tooltip } from '@/shared/ui';
 import {
@@ -13,10 +13,9 @@ import {
   STUDY_AREA_BUFFER_KM,
   BUDGET_COMPONENTS,
   BUDGET_ASSUMPTIONS,
-  originFromHit,
   hitFromOrigin,
-  type SearchHit,
 } from '@/features/reachability/reachabilityService';
+import type { Journey } from '@/features/reachability/types';
 import { linesForStop } from '@/shared/data/adapters/gtfsAdapter';
 
 // Epic3
@@ -29,27 +28,49 @@ import {
   busStopsNearAccessibleStations,
   useFirstMile,
   useLiveTransit,
+  DEFAULT_FIRST_MILE_THRESHOLD_MINUTES,
+  type FirstMileStopResult,
 } from '@/features/first-mile';
 
 import {MapAnalysisPanel,type MapAnalysisTab,} from './components/MapAnalysisPanel';
+import { useMapServices } from './components/useMapServices';
+
+/** One shared empty array, so "no stops yet" keeps a stable identity between renders. */
+const NO_STOPS: FirstMileStopResult[] = [];
 
 interface MapPageProps {
-  initialLocation: SearchHit | null;
+  journey: Journey;
   onToast: (message: string, icon?: string) => void;
+  /** Which analysis tab is open. Controlled, so the navigation can open one directly. */
+  analysisTab: MapAnalysisTab;
+  onAnalysisTabChange: (tab: MapAnalysisTab) => void;
 }
 
-export function MapPage({ initialLocation, onToast }: MapPageProps) {
+export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: MapPageProps) {
   const [configOpen, setConfigOpen] = useState(true);
-  const reach = useReachability(
-    initialLocation ? originFromHit(initialLocation) : null,
+  const reach = useReachability({
+    origin: journey.origin,
+    onOriginChange: journey.onOriginChange,
+    timeBudget: journey.timeBudget,
+    onTimeBudgetChange: journey.onTimeBudgetChange,
     onToast,
+  });
+  // The walk gets its own limit, not the journey budget. Passing the budget in here meant
+  // a 45-minute journey was read as a willingness to walk 45 minutes to a station, and the
+  // panel listed every station inside that radius as "accessible".
+  const firstMile = useFirstMile(
+    reach.origin?.at ?? null,
+    DEFAULT_FIRST_MILE_THRESHOLD_MINUTES,
   );
-  const firstMile = useFirstMile(reach.origin?.at ?? null, reach.timeBudget,);
-  const accessibleStops =
-  firstMile.state.status ===
-  'ready'
-    ? firstMile.state.stops
-    : [];
+
+  // Memoised, and falling back to a module-level constant rather than a fresh []. A new
+  // array literal here is a new identity on every render, and this value is a dependency
+  // of useLiveTransit's effect — which sets state, causing the next render, and so on.
+  // That loop ran continuously on this page at roughly 57 warnings a second.
+  const accessibleStops = useMemo(
+    () => (firstMile.state.status === 'ready' ? firstMile.state.stops : NO_STOPS),
+    [firstMile.state],
+  );
 
   const liveTransit =
     useLiveTransit(
@@ -57,8 +78,17 @@ export function MapPage({ initialLocation, onToast }: MapPageProps) {
       firstMile.state.status ===
         'ready',
     );
-  const nearbyBusStops = busStopsNearAccessibleStations(accessibleStops,);
-  const [analysisTab, setAnalysisTab,] = useState<MapAnalysisTab>('first-mile');
+  const nearbyBusStops = useMemo(
+    () => busStopsNearAccessibleStations(accessibleStops),
+    [accessibleStops],
+  );
+
+  // Computed only while its tab is open — see the note in useMapServices.
+  const services = useMapServices(
+    reach.origin?.at ?? null,
+    journey.timeBudget,
+    analysisTab === 'services',
+  );
 
   return (
     // top-16 rather than pt-16: an absolutely positioned child resolves inset-0 against
@@ -77,6 +107,9 @@ export function MapPage({ initialLocation, onToast }: MapPageProps) {
           onMapClick={
             reach.selectPoint
           }
+          services={services.displayed}
+          selectedServiceId={services.selected?.id ?? null}
+          onServiceSelect={services.select}
         >
           {firstMile.state.status ===
             'ready' && (
@@ -122,8 +155,8 @@ export function MapPage({ initialLocation, onToast }: MapPageProps) {
         firstMileState={
           firstMile.state
         }
-        timeBudget={
-          reach.timeBudget
+        walkThresholdMinutes={
+          DEFAULT_FIRST_MILE_THRESHOLD_MINUTES
         }
         selectedStopId={
           firstMile.selectedStopId
@@ -134,11 +167,13 @@ export function MapPage({ initialLocation, onToast }: MapPageProps) {
         onRetryReachability={
           reach.retry
         }
+        services={services}
+        hasOrigin={Boolean(reach.origin)}
         activeTab={
           analysisTab
         }
         onTabChange={
-          setAnalysisTab
+          onAnalysisTabChange
         }
       />
 

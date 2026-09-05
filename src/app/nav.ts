@@ -25,7 +25,10 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { id: 'landing', label: 'Home', icon: Home },
   { id: 'map', label: 'Map', icon: Map },
-  { id: 'services', label: 'Services', icon: Building2 },
+  // Services is a tab on the map, not a screen of its own. A second entry in the navigation
+  // implied a second place to go and a second starting point to set, which is the confusion
+  // that merging it into the map panel removed.
+  { id: 'services', label: 'Services', icon: Building2, hidden: true },
   { id: 'time', label: 'Time', icon: Clock },
   { id: 'scenario', label: 'Scenarios', icon: Route, hidden: true },
   { id: 'typology', label: 'Typology', icon: TrendingUp, hidden: true },

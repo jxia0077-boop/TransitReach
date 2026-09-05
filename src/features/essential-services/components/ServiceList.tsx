@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Accessibility, ChevronRight, Clock, MapPin } from 'lucide-react';
 import { CATEGORY_META, CATEGORY_ORDER } from '@/shared/data';
 import type { ServiceLocation } from '@/shared/types/service';
@@ -10,12 +11,36 @@ interface ServiceListProps {
   onSelect: (service: ServiceLocation) => void;
 }
 
+/**
+ * How many rows are rendered before the reader asks for more.
+ *
+ * Rendering every match put 65,110 nodes in the DOM at a central origin and pushed the
+ * latency of a single keystroke in the filter box to over a second. The full count is
+ * still reported above the list, so nothing is hidden — only deferred.
+ */
+const PAGE_SIZE = 50;
+
 /** Epic 5.1.2 — service records are visibly grouped by the documented category. */
 export function ServiceList({ services, hoveredService, selectedService, onHover, onSelect }: ServiceListProps) {
+  const [limit, setLimit] = useState(PAGE_SIZE);
+
+  // A new result set starts from the top again, rather than keeping a limit the reader
+  // raised for a different set of services.
+  useEffect(() => setLimit(PAGE_SIZE), [services]);
+
+  const shown = services.slice(0, limit);
+  const remaining = services.length - shown.length;
+
   return (
     <div className="space-y-3 max-h-[560px] overflow-y-auto scrollbar-thin pr-1">
+      {services.length > 0 && (
+        <div className="text-xs text-slate-500 px-1">
+          Showing <span className="font-semibold text-slate-700">{shown.length}</span> of{' '}
+          <span className="font-semibold text-slate-700">{services.length.toLocaleString()}</span> services
+        </div>
+      )}
       {CATEGORY_ORDER.map(category => {
-        const grouped = services.filter(service => service.category === category);
+        const grouped = shown.filter(service => service.category === category);
         if (!grouped.length) return null;
         const categoryMeta = CATEGORY_META[category];
         return (
@@ -65,10 +90,18 @@ export function ServiceList({ services, hoveredService, selectedService, onHover
           </section>
         );
       })}
+      {remaining > 0 && (
+        <button
+          onClick={() => setLimit(current => current + PAGE_SIZE)}
+          className="btn-secondary w-full text-xs py-2.5"
+        >
+          Show {Math.min(PAGE_SIZE, remaining)} more · {remaining.toLocaleString()} remaining
+        </button>
+      )}
       {services.length === 0 && (
         <div className="glass p-8 text-center">
           <p className="text-sm font-semibold text-slate-700">No services found</p>
-          <p className="text-xs text-slate-500 mt-1">Try a longer travel time or another travel mode.</p>
+          <p className="text-xs text-slate-500 mt-1">Try a longer travel time, or a different category.</p>
         </div>
       )}
     </div>

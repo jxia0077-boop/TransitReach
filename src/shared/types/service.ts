@@ -7,6 +7,12 @@ export type ServiceCategory =
   | 'pharmacy'
   | 'school'
   | 'market'
+  /**
+   * Split out of `market`. Malls were in the data all along as `shop=mall` but carried no
+   * label of their own, so someone looking for one had no way to find it — the mentors'
+   * "user can find categories that are not shown in the button".
+   */
+  | 'mall'
   | 'govt'
   | 'park'
   | 'bank'
