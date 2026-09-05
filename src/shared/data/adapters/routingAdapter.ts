@@ -47,6 +47,17 @@ export const DEPARTURE_TIME_IS_PROVISIONAL = true;
 export type TravelMode = 'walking' | 'transit' | 'multimodal';
 
 /**
+ * The mode every screen computes with.
+ *
+ * The interface used to offer all three as a setting. That asked the user to choose a
+ * modelling assumption rather than describe a trip: a rider without a car walks *and*
+ * rides, and the walking-only case is already reported as a finding by AC 1.2.4 when no
+ * service can be boarded. The type keeps all three because the routing engine accepts
+ * them and the walk-only isochrone is still requested internally to detect that case.
+ */
+export const TRAVEL_MODE: TravelMode = 'multimodal';
+
+/**
  * Walking speed OTP is configured with, in metres per second.
  * Mirrors `routingDefaults.walk.speed` in routing/otp/router-config.json.
  * AC 1.2.3 requires this to be stated in the interface; if you change one, change both.

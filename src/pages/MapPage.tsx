@@ -15,7 +15,7 @@ import {
   BUDGET_ASSUMPTIONS,
   hitFromOrigin,
 } from '@/features/reachability/reachabilityService';
-import type { Journey, TravelMode } from '@/features/reachability/types';
+import type { Journey } from '@/features/reachability/types';
 import { linesForStop } from '@/shared/data/adapters/gtfsAdapter';
 
 // Epic3
@@ -37,12 +37,6 @@ import { useMapServices } from './components/useMapServices';
 /** One shared empty array, so "no stops yet" keeps a stable identity between renders. */
 const NO_STOPS: FirstMileStopResult[] = [];
 
-const TRAVEL_MODES: [TravelMode, string][] = [
-  ['multimodal', 'Walking + transit'],
-  ['walking', 'Walking only'],
-  ['transit', 'Public transport'],
-];
-
 interface MapPageProps {
   journey: Journey;
   onToast: (message: string, icon?: string) => void;
@@ -58,7 +52,6 @@ export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: 
     onOriginChange: journey.onOriginChange,
     timeBudget: journey.timeBudget,
     onTimeBudgetChange: journey.onTimeBudgetChange,
-    travelMode: journey.travelMode,
     onToast,
   });
   const firstMile = useFirstMile(reach.origin?.at ?? null, reach.timeBudget,);
@@ -87,7 +80,6 @@ export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: 
   const services = useMapServices(
     reach.origin?.at ?? null,
     journey.timeBudget,
-    journey.travelMode,
     analysisTab === 'services',
   );
 
@@ -247,31 +239,6 @@ export function MapPage({ journey, onToast, analysisTab, onAnalysisTabChange }: 
                   <BudgetCompositionHelp />
                 </div>
                 <TimeBudgetSelector value={reach.timeBudget} onChange={reach.changeTimeBudget} />
-              </div>
-
-              {/* One mode for the whole screen: the drawn area and the services listed
-                  beside it are computed from the same setting, so they cannot describe
-                  different journeys. */}
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-1.5 block">Travel mode</label>
-                <div
-                  role="radiogroup"
-                  aria-label="Travel mode"
-                  className="flex flex-wrap items-center gap-1.5 p-1 glass-chip rounded-xl"
-                >
-                  {TRAVEL_MODES.map(([mode, label]) => (
-                    <button
-                      key={mode}
-                      role="radio"
-                      aria-checked={journey.travelMode === mode}
-                      onClick={() => journey.onTravelModeChange(mode)}
-                      className={`chip whitespace-nowrap ${journey.travelMode === mode ? 'chip-selected' : 'chip-unselected'}`}
-                      style={{ padding: '5px 10px', fontSize: 11 }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               <div className="pt-2 border-t border-slate-200/70">

@@ -101,7 +101,7 @@ export function ServiceList({ services, hoveredService, selectedService, onHover
       {services.length === 0 && (
         <div className="glass p-8 text-center">
           <p className="text-sm font-semibold text-slate-700">No services found</p>
-          <p className="text-xs text-slate-500 mt-1">Try a longer travel time or another travel mode.</p>
+          <p className="text-xs text-slate-500 mt-1">Try a longer travel time, or a different category.</p>
         </div>
       )}
     </div>

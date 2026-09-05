@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useRealEssentialServices } from '@/features/essential-services';
 import { CATEGORY_ORDER } from '@/shared/data';
-import { DEPARTURE_TIME, type TravelMode } from '@/shared/data/adapters/routingAdapter';
+import { DEPARTURE_TIME, TRAVEL_MODE } from '@/shared/data/adapters/routingAdapter';
 import type { LatLng } from '@/features/reachability/types';
 import type { ServiceCategory, ServiceLocation } from '@/shared/types/service';
 
@@ -44,7 +44,6 @@ export interface MapServicesModel {
 export function useMapServices(
   origin: LatLng | null,
   budgetMinutes: number,
-  travelMode: TravelMode,
   enabled: boolean,
 ): MapServicesModel {
   const [categories, setCategories] = useState<Set<ServiceCategory>>(
@@ -56,7 +55,7 @@ export function useMapServices(
   const data = useRealEssentialServices(
     enabled ? origin : null,
     budgetMinutes,
-    travelMode,
+    TRAVEL_MODE,
     DEPARTURE_TIME,
   );
 

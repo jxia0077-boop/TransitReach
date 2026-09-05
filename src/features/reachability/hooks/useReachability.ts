@@ -3,8 +3,8 @@ import {
   computeReachability,
   DEPARTURE_TIME,
   RoutingTimeoutError,
+  TRAVEL_MODE,
   type IsochroneResult,
-  type TravelMode,
 } from '@/shared/data/adapters/routingAdapter';
 import type { LatLng, Origin, OsmPlace, RailStop } from '../types';
 import { isInStudyArea } from '../reachabilityService';
@@ -49,12 +49,6 @@ export interface ReachabilityOptions {
   onOriginChange: (origin: Origin | null) => void;
   timeBudget: number;
   onTimeBudgetChange: (minutes: number) => void;
-  /**
-   * Shared with the services coverage, which computes its own isochrone. If the two used
-   * different modes the map would draw a walking-only area while listing services taken
-   * from a transit one.
-   */
-  travelMode: TravelMode;
   onToast: (message: string, icon?: string) => void;
 }
 
@@ -63,7 +57,6 @@ export function useReachability({
   onOriginChange,
   timeBudget,
   onTimeBudgetChange,
-  travelMode,
   onToast,
 }: ReachabilityOptions) {
   const setOrigin = onOriginChange;
@@ -75,7 +68,7 @@ export function useReachability({
   const inFlight = useRef<AbortController | null>(null);
 
   const run = useCallback(
-    (at: LatLng, budgetMinutes: number, mode: TravelMode) => {
+    (at: LatLng, budgetMinutes: number) => {
       inFlight.current?.abort();
       const controller = new AbortController();
       inFlight.current = controller;
@@ -85,7 +78,7 @@ export function useReachability({
       // starts, not when it finishes, so two areas are never on the map at once.
       setState({ status: 'computing', budgetMinutes });
 
-      computeReachability(at, budgetMinutes, controller.signal, DEPARTURE_TIME, mode)
+      computeReachability(at, budgetMinutes, controller.signal, DEPARTURE_TIME, TRAVEL_MODE)
         .then(({ result, walkingOnly }) => {
           if (ticket !== runId.current) return; // superseded — discard, never render
           setState({ status: 'ready', budgetMinutes, result, walkingOnly });
@@ -106,7 +99,7 @@ export function useReachability({
     [],
   );
 
-  // Recompute whenever the origin, the budget or the mode changes, and only then.
+  // Recompute whenever the origin or the budget changes, and only then.
   useEffect(() => {
     if (!origin) {
       inFlight.current?.abort();
@@ -114,8 +107,8 @@ export function useReachability({
       setState({ status: 'idle' });
       return;
     }
-    run(origin.at, timeBudget, travelMode);
-  }, [origin, timeBudget, travelMode, run]);
+    run(origin.at, timeBudget);
+  }, [origin, timeBudget, run]);
 
   useEffect(() => () => inFlight.current?.abort(), []);
 
@@ -185,7 +178,7 @@ export function useReachability({
 
   /** AC 1.3.2 — re-runs the same settings without the user re-entering anything. */
   const retry = () => {
-    if (origin) run(origin.at, timeBudget, travelMode);
+    if (origin) run(origin.at, timeBudget);
   };
 
   return {

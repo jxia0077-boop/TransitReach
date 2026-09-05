@@ -4,7 +4,7 @@ import { BaseMap, LocationSearch, TimeBudgetSelector } from '@/features/reachabi
 import { hitFromOrigin, isInStudyArea, originFromHit } from '@/features/reachability/reachabilityService';
 import { CATEGORY_META, CATEGORY_ORDER } from '@/shared/data';
 import { loadEssentialServices } from '@/shared/data/adapters/essentialServicesAdapter';
-import { computeReachability, type IsochroneResult, type TravelMode } from '@/shared/data/adapters/routingAdapter';
+import { computeReachability, TRAVEL_MODE, type IsochroneResult } from '@/shared/data/adapters/routingAdapter';
 import { deduplicateServices } from '@/features/essential-services';
 import type { ServiceLocation } from '@/shared/types/service';
 import type { Journey, Origin } from '@/features/reachability/types';
@@ -44,10 +44,9 @@ function pointInRing(lat: number, lon: number, ring: [number, number][]) {
 
 export function TimeComparisonPage({ journey }: { journey: Journey }) {
   // Shared with the rest of the app; only the two departure times belong to this screen.
-  const { origin, timeBudget: budget, travelMode } = journey;
+  const { origin, timeBudget: budget } = journey;
   const setOrigin = journey.onOriginChange;
   const setBudget = journey.onTimeBudgetChange;
-  const setTravelMode = journey.onTravelModeChange;
   const [times, setTimes] = useState<[string, string]>(DEFAULT_TIMES);
   const [left, setLeft] = useState<CoverageState>({ status: 'idle', result: null, services: [], error: null });
   const [right, setRight] = useState<CoverageState>({ status: 'idle', result: null, services: [], error: null });
@@ -65,8 +64,8 @@ export function TimeComparisonPage({ journey }: { journey: Journey }) {
     setLeft({ status: 'loading', result: null, services: [], error: null });
     setRight({ status: 'loading', result: null, services: [], error: null });
     Promise.all([
-      computeReachability(origin.at, budget, controller.signal, departureTimes[0]!, travelMode),
-      computeReachability(origin.at, budget, controller.signal, departureTimes[1]!, travelMode),
+      computeReachability(origin.at, budget, controller.signal, departureTimes[0]!, TRAVEL_MODE),
+      computeReachability(origin.at, budget, controller.signal, departureTimes[1]!, TRAVEL_MODE),
     ])
       .then(([a, b]) => {
         setLeft({ status: 'ready', result: a.result, services: deduplicateServices(allServices.filter(service => isInside(service, a.result))), error: null });
@@ -79,7 +78,7 @@ export function TimeComparisonPage({ journey }: { journey: Journey }) {
         setRight({ status: 'error', result: null, services: [], error: message });
       });
     return () => controller.abort();
-  }, [origin, budget, travelMode, times, allServices]);
+  }, [origin, budget, times, allServices]);
 
   const chooseOrigin = (next: Origin) => setOrigin(next);
   const updateTime = (side: 0 | 1, value: string) => setTimes(previous => {
@@ -90,12 +89,11 @@ export function TimeComparisonPage({ journey }: { journey: Journey }) {
   return (
     <div className="min-h-screen pt-16">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6"><h1 className="text-3xl font-bold text-slate-900 mb-2">Time-of-Day Service Comparison</h1><p className="text-slate-600">Compare real essential-service coverage at two departure times using the same origin, mode and travel budget.</p></div>
+        <div className="mb-6"><h1 className="text-3xl font-bold text-slate-900 mb-2">Time-of-Day Service Comparison</h1><p className="text-slate-600">Compare real essential-service coverage at two departure times using the same origin and travel budget.</p></div>
         <div className="glass p-4 mb-6 space-y-4">
           <div className="grid lg:grid-cols-[1fr_auto_auto] gap-4 items-end">
             <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Starting point</label><LocationSearch onSelect={hit => chooseOrigin(originFromHit(hit))} selected={hitFromOrigin(origin)} /></div>
             <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Travel budget</label><TimeBudgetSelector value={budget} onChange={setBudget} /></div>
-            <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Mode</label><select value={travelMode} onChange={event => setTravelMode(event.target.value as TravelMode)} className="glass-input px-3 py-2.5 text-sm"><option value="multimodal">Walking + transit</option><option value="walking">Walking only</option><option value="transit">Public transport</option></select></div>
           </div>
           <div className="grid md:grid-cols-2 gap-3">
             {[0, 1].map(side => { const Icon = side === 0 ? Sunrise : Sunset; const color = side === 0 ? '#f59e0b' : '#6366f1'; return <label key={side} className="glass-chip p-3 flex flex-wrap items-center gap-3"><Icon size={18} style={{ color }} /><span className="text-xs font-bold text-slate-500 uppercase">{side === 0 ? 'Option A' : 'Option B'}</span><input type="datetime-local" value={times[side]} min={FEED_START} max={FEED_END} step="60" onChange={event => updateTime(side as 0 | 1, event.target.value)} className="ml-auto bg-transparent text-sm font-semibold text-slate-700 outline-none" /><span className="w-full text-[11px] text-slate-500">{formatTimeLabel(times[side])} · GTFS data valid through 31 Dec 2026</span></label>; })}
