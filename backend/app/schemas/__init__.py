@@ -1,1 +1,39 @@
-"""Pydantic request/response schemas (populated in later Epic 7 commits)."""
+"""Public schema exports for the reliability API."""
+
+from app.schemas.domain import (
+    PREDICTION_UNAVAILABLE_MESSAGE,
+    Capability,
+    OperationalObservation,
+    PredictionType,
+    RiskLevel,
+    ServiceIdentity,
+    TransitMode,
+    UnavailableReason,
+)
+from app.schemas.reliability import (
+    MethodologyInfo,
+    ReliabilityPredictionSupported,
+    ReliabilityPredictionUnsupported,
+    ReliabilityPredictQuery,
+    ReliabilityPredictionResponse,
+    TrainingPeriod,
+    reliability_prediction_adapter,
+)
+
+__all__ = [
+    "PREDICTION_UNAVAILABLE_MESSAGE",
+    "Capability",
+    "MethodologyInfo",
+    "OperationalObservation",
+    "PredictionType",
+    "ReliabilityPredictQuery",
+    "ReliabilityPredictionResponse",
+    "ReliabilityPredictionSupported",
+    "ReliabilityPredictionUnsupported",
+    "RiskLevel",
+    "ServiceIdentity",
+    "TrainingPeriod",
+    "TransitMode",
+    "UnavailableReason",
+    "reliability_prediction_adapter",
+]
