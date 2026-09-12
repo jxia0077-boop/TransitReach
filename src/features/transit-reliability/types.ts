@@ -12,10 +12,14 @@ export type RiskLevel = 'low' | 'moderate' | 'high' | 'very_high';
 export type PredictionType = 'historical' | 'live_adjusted';
 
 export type UnavailableReason =
-  'insufficient_historical_operational_data';
+  | 'insufficient_historical_operational_data'
+  | 'realtime_operational_history_unavailable';
 
 export const PREDICTION_UNAVAILABLE_MESSAGE =
   'Prediction unavailable — insufficient historical operational data';
+
+export const RAIL_PREDICTION_UNAVAILABLE_MESSAGE =
+  'Prediction unavailable — realtime operational history is currently unavailable for this service';
 
 export interface ServiceIdentity {
   mode: TransitMode;

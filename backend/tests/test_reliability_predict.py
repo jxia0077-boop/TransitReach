@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.main import create_app
 from app.schemas.domain import (
-    PREDICTION_UNAVAILABLE_MESSAGE,
+    RAIL_PREDICTION_UNAVAILABLE_MESSAGE,
     TransitMode,
 )
 from app.services.prediction_service import PredictionService
@@ -27,8 +27,8 @@ def test_predict_service_returns_unsupported_for_valid_selection() -> None:
         travel_datetime=datetime(2026, 9, 12, 18, 0, tzinfo=timezone.utc),
     )
     assert result.supported is False
-    assert result.message == PREDICTION_UNAVAILABLE_MESSAGE
-    assert result.reason.value == "insufficient_historical_operational_data"
+    assert result.message == RAIL_PREDICTION_UNAVAILABLE_MESSAGE
+    assert result.reason.value == "realtime_operational_history_unavailable"
     assert not hasattr(result, "expected_delay_min") or not getattr(
         result, "expected_delay_min", None
     )
@@ -49,8 +49,8 @@ def test_predict_http_unsupported_contract() -> None:
     body = response.json()
     assert body == {
         "supported": False,
-        "reason": "insufficient_historical_operational_data",
-        "message": PREDICTION_UNAVAILABLE_MESSAGE,
+        "reason": "realtime_operational_history_unavailable",
+        "message": RAIL_PREDICTION_UNAVAILABLE_MESSAGE,
     }
     assert "expected_delay_min" not in body
     assert "risk_level" not in body

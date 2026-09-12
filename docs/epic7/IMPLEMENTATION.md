@@ -61,32 +61,47 @@ actual_delay_minutes = actual_arrival − scheduled_arrival
 
 ### What exists today
 
-| Mode | GTFS Static | Public GTFS-RT vehicle positions | Historical RT archive in repo |
-|------|-------------|----------------------------------|-------------------------------|
-| MRT / LRT | Yes (`rapid-rail-kl`) | **No stable feed** (docs: rail RT not provided) | **None** |
-| BRT Sunway | Yes (as TRAM in same rail feed) | Same as rail — **no stable RT** | **None** |
-| Rapid Bus KL | Yes (`rapid-bus-kl`) | **Yes** | **None** (only live fetch) |
+| Mode | GTFS Static | Public GTFS-RT vehicle positions | Historical RT archive |
+|------|-------------|----------------------------------|------------------------|
+| MRT / LRT / BRT (rail catalog) | Yes (`rapid-rail-kl`) | **No stable feed** (404 / docs: not stable) | **None public** |
+| Rapid Bus KL | Yes (`rapid-bus-kl`) | **Yes** | **KRI GKLMOB** historical vehicle positions (2025–2026 study period; also older community archives) |
+| MRT Feeder | Yes (`rapid-bus-mrtfeeder`) | **Yes** | **Same KRI pipeline** |
+
+### Product decision (bus pilot)
+
+Run the **full AI reliability pipeline first on Rapid KL Bus + MRT Feeder**, using:
+
+1. GTFS Static (schedule)  
+2. Historical GTFS-RT vehicle positions (KRI / equivalent archives collected from data.gov.my)  
+3. Derived actual arrivals → delay labels → CatBoost/XGBoost → expected delay → risk bands  
+
+Reference methodology / layout: [KRI-Data/GKLMOB_BUSINDEX](https://github.com/KRI-Data/GKLMOB_BUSINDEX) (static under `GTFS/GTFS_S/`, RT under `GTFS/GTFS_RT/…` as daily position CSVs used for punctuality, headway and reliability).
+
+Rail (MRT/LRT/BRT) stays selectable but fail-closed with:
+
+`Prediction unavailable — realtime operational history is currently unavailable for this service`
 
 ### Implication
 
-1. **You must not invent** historical `actual_arrival` rows.  
-2. **You must not** train CatBoost on synthetic delays.  
-3. Until a **collection job** has stored enough matched trip–stop arrivals, every MRT/LRT/BRT query returns:
+1. **Do not invent** historical `actual_arrival` rows from Static alone.  
+2. **Do not** train on synthetic delays.  
+3. Rail queries use the rail unavailable message above (not a fabricated delay).  
+4. Bus / MRT Feeder become `prediction_available` only after chronological evaluation (MAE/RMSE vs baseline) is recorded.  
+5. Same code path later attaches to rail when a public rail RT history exists.
 
-   `Prediction unavailable — insufficient historical operational data`
+### Bus pilot pipeline (unblock Stages 3–5 for bus)
 
-4. UI may still list all loaded MRT/LRT/BRT lines (AC 7.1.1); capability flags mark `prediction_available: false`.  
-5. Optional later: if product expands to **bus**, the same pipeline can become prediction-enabled sooner because RT exists — **out of current epic wording**, note as next step only.
+```
+Historical RT (KRI / archived vehicle positions)
++ GTFS Static
+→ trip match → stop geofence → actual_arrival
+→ delay labels
+→ CatBoost / XGBoost (+ historical-median baseline)
+→ expected delay → reliability risk
+→ optional live-adjusted when fresh RT exists
+```
 
-### Minimum collection plan (unblock Stages 3–5)
-
-1. Poll vehicle positions on a fixed interval (e.g. 15–30s) for any feed that later supports rail/BRT RT **or** agree with mentors to scope bus as pilot.  
-2. Persist raw observations (Parquet/SQLite) with timestamp.  
-3. Offline: match → geofence → `actual_delay_minutes` + quality flags.  
-4. Only rows with adequate match confidence enter training.  
-5. Document coverage: lines, stops, date range, sample counts.
-
-**Until that exists: implement Stages 1–2 and 6–7 UI/API with capability = unavailable; Stages 3–5 produce empty datasets and fail closed.**
+**Until bus model is validated: rail UI/API remain unavailable; commits 0–6 stay the rail shell.**
 
 ---
 

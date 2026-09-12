@@ -5,7 +5,11 @@ from __future__ import annotations
 from datetime import datetime
 from functools import lru_cache
 
-from app.schemas.domain import TransitMode, UnavailableReason
+from app.schemas.domain import (
+    TransitMode,
+    UnavailableReason,
+    message_for_unavailable_reason,
+)
 from app.schemas.reliability import (
     ReliabilityPredictionUnsupported,
     ReliabilityPredictQuery,
@@ -20,9 +24,9 @@ from app.services.capability_service import (
 class PredictionService:
     """Returns AI reliability estimates only when capability allows it.
 
-    Current iteration has no operational ground truth / validated model, so every
-    valid catalog query receives the AC 7.1.4 unsupported response. No delay or
-    risk band is fabricated.
+    Current rail/BRT catalog queries stay fail-closed. Bus / MRT Feeder may later
+    return supported predictions after the KRI historical RT pilot is validated.
+    No delay or risk band is fabricated without ground truth.
     """
 
     def __init__(
@@ -46,11 +50,13 @@ class PredictionService:
         _ = travel_datetime
 
         if not capability.prediction_available:
+            reason = (
+                capability.unavailable_reason
+                or UnavailableReason.insufficient_historical_operational_data
+            )
             return ReliabilityPredictionUnsupported(
-                reason=(
-                    capability.unavailable_reason
-                    or UnavailableReason.insufficient_historical_operational_data
-                ),
+                reason=reason,
+                message=message_for_unavailable_reason(reason),
             )
 
         # Future commits enable historical / live-adjusted models here.

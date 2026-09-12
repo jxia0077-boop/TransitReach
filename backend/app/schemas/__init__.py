@@ -3,6 +3,7 @@
 from app.schemas.catalog import CatalogLine, CatalogStop, StaticTransitCatalog
 from app.schemas.domain import (
     PREDICTION_UNAVAILABLE_MESSAGE,
+    RAIL_PREDICTION_UNAVAILABLE_MESSAGE,
     Capability,
     OperationalObservation,
     PredictionType,
@@ -10,6 +11,7 @@ from app.schemas.domain import (
     ServiceIdentity,
     TransitMode,
     UnavailableReason,
+    message_for_unavailable_reason,
 )
 from app.schemas.reliability import (
     MethodologyInfo,
@@ -23,6 +25,7 @@ from app.schemas.reliability import (
 
 __all__ = [
     "PREDICTION_UNAVAILABLE_MESSAGE",
+    "RAIL_PREDICTION_UNAVAILABLE_MESSAGE",
     "Capability",
     "CatalogLine",
     "CatalogStop",
@@ -39,5 +42,6 @@ __all__ = [
     "TrainingPeriod",
     "TransitMode",
     "UnavailableReason",
+    "message_for_unavailable_reason",
     "reliability_prediction_adapter",
 ]

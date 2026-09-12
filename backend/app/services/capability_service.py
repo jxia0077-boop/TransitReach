@@ -1,9 +1,8 @@
 """Capability matrix for Epic 7 reliability predictions (AC 7.1.4).
 
-All loaded MRT/LRT/BRT lines may appear in the UI. AI predictions are enabled
-only when static catalog + historical operational data + a validated model are
-all available. Until operational ground truth exists, every rail capability is
-fail-closed with insufficient_historical_operational_data.
+Loaded MRT/LRT/BRT lines remain selectable. Rail/BRT predictions stay fail-closed
+until a public realtime operational history exists. Bus / MRT Feeder may later
+become prediction-enabled via the KRI historical vehicle-position pilot.
 """
 
 from __future__ import annotations
@@ -15,6 +14,14 @@ from app.services.static_catalog_service import (
     StaticCatalogService,
     get_static_catalog_service,
 )
+
+# Modes currently served from rapid-rail-kl static catalog (no public RT history).
+_RAIL_CATALOG_MODES = {
+    TransitMode.mrt,
+    TransitMode.lrt,
+    TransitMode.brt,
+    TransitMode.mrl,
+}
 
 
 class CapabilityNotFoundError(LookupError):
@@ -74,7 +81,8 @@ class CapabilityService:
         stop_id: str | None = None,
     ) -> Capability:
         static_available = True
-        # No historical operational archive or validated model is registered yet.
+        # Rail catalog: no public historical vehicle-position archive yet.
+        # Bus pilot (KRI / live RT) will flip these flags per line when validated.
         historical_operational_data_available = False
         realtime_available = False
         model_available = False
@@ -87,9 +95,14 @@ class CapabilityService:
 
         unavailable_reason: UnavailableReason | None = None
         if not prediction_available:
-            unavailable_reason = (
-                UnavailableReason.insufficient_historical_operational_data
-            )
+            if mode in _RAIL_CATALOG_MODES:
+                unavailable_reason = (
+                    UnavailableReason.realtime_operational_history_unavailable
+                )
+            else:
+                unavailable_reason = (
+                    UnavailableReason.insufficient_historical_operational_data
+                )
 
         return Capability(
             mode=mode,

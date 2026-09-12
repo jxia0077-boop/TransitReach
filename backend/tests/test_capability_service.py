@@ -19,7 +19,7 @@ def test_all_loaded_lines_are_not_prediction_enabled() -> None:
     assert all(not cap.prediction_available for cap in capabilities)
     assert all(
         cap.unavailable_reason
-        == UnavailableReason.insufficient_historical_operational_data
+        == UnavailableReason.realtime_operational_history_unavailable
         for cap in capabilities
     )
 
@@ -63,5 +63,5 @@ def test_capabilities_http_endpoints() -> None:
     assert one.json()["prediction_available"] is False
     assert (
         one.json()["unavailable_reason"]
-        == "insufficient_historical_operational_data"
+        == "realtime_operational_history_unavailable"
     )

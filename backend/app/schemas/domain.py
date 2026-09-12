@@ -39,11 +39,26 @@ class UnavailableReason(str, Enum):
     insufficient_historical_operational_data = (
         "insufficient_historical_operational_data"
     )
+    # Rail / BRT: no public historical vehicle-position archive yet.
+    realtime_operational_history_unavailable = (
+        "realtime_operational_history_unavailable"
+    )
 
 
 PREDICTION_UNAVAILABLE_MESSAGE = (
     "Prediction unavailable — insufficient historical operational data"
 )
+
+RAIL_PREDICTION_UNAVAILABLE_MESSAGE = (
+    "Prediction unavailable — realtime operational history is currently "
+    "unavailable for this service"
+)
+
+
+def message_for_unavailable_reason(reason: UnavailableReason) -> str:
+    if reason == UnavailableReason.realtime_operational_history_unavailable:
+        return RAIL_PREDICTION_UNAVAILABLE_MESSAGE
+    return PREDICTION_UNAVAILABLE_MESSAGE
 
 
 class ServiceIdentity(BaseModel):

@@ -18,8 +18,8 @@ export function PredictionDataStatus({ status, result }: Props) {
           Data status
         </h2>
         <p>
-          Historical forecast: unavailable — insufficient historical operational
-          data.
+          Historical forecast: unavailable — realtime operational history is
+          currently unavailable for this service.
         </p>
         <p>Realtime adjustment: unavailable.</p>
       </div>

@@ -18,7 +18,7 @@ export type {
   UnavailableReason,
 } from './types';
 
-export { PREDICTION_UNAVAILABLE_MESSAGE } from './types';
+export { PREDICTION_UNAVAILABLE_MESSAGE, RAIL_PREDICTION_UNAVAILABLE_MESSAGE } from './types';
 
 export {
   fetchReliabilityCatalog,
