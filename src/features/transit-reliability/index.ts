@@ -1,5 +1,7 @@
 export type {
   Capability,
+  CatalogLine,
+  CatalogStop,
   MethodologyInfo,
   OperationalObservation,
   PredictionType,
@@ -10,6 +12,7 @@ export type {
   ReliabilityQuerySelection,
   RiskLevel,
   ServiceIdentity,
+  StaticTransitCatalog,
   TrainingPeriod,
   TransitMode,
   UnavailableReason,

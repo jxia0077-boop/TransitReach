@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.catalog import router as catalog_router
 from app.api.health import router as health_router
 from app.config import get_settings
 
@@ -25,7 +26,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     application.include_router(health_router)
-    # Reliability routes are added in later Epic 7 commits.
+    application.include_router(catalog_router)
+    # Predict routes are added in later Epic 7 commits.
     return application
 
 

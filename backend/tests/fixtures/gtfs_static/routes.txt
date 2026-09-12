@@ -1,0 +1,3 @@
+route_id,agency_id,route_short_name,route_long_name,route_type,route_color
+KJ,rapidrail,KJL,LRT Kelana Jaya Line,1,D50032
+BRT,rapidrail,BRT,BRT Sunway Line,0,115740

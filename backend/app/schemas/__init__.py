@@ -1,5 +1,6 @@
 """Public schema exports for the reliability API."""
 
+from app.schemas.catalog import CatalogLine, CatalogStop, StaticTransitCatalog
 from app.schemas.domain import (
     PREDICTION_UNAVAILABLE_MESSAGE,
     Capability,
@@ -23,6 +24,8 @@ from app.schemas.reliability import (
 __all__ = [
     "PREDICTION_UNAVAILABLE_MESSAGE",
     "Capability",
+    "CatalogLine",
+    "CatalogStop",
     "MethodologyInfo",
     "OperationalObservation",
     "PredictionType",
@@ -32,6 +35,7 @@ __all__ = [
     "ReliabilityPredictionUnsupported",
     "RiskLevel",
     "ServiceIdentity",
+    "StaticTransitCatalog",
     "TrainingPeriod",
     "TransitMode",
     "UnavailableReason",

@@ -1,0 +1,4 @@
+stop_id,stop_name,stop_lat,stop_lon
+KJ01,Station A,3.10,101.60
+KJ02,Station B,3.11,101.61
+BRT01,Sunway Station,3.07,101.60

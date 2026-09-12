@@ -117,3 +117,33 @@ export interface ReliabilityQuerySelection {
   stopId: string | null;
   datetime: string | null;
 }
+
+/** Mirrors backend StaticTransitCatalog for AC 7.1.1 selectors. */
+export interface CatalogLine {
+  mode: TransitMode;
+  line_id: string;
+  route_id: string;
+  short_name: string;
+  long_name: string;
+  color?: string | null;
+  stop_count: number;
+  min_headway_seconds?: number | null;
+  max_headway_seconds?: number | null;
+}
+
+export interface CatalogStop {
+  stop_id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  line_ids: string[];
+  platform_ids: string[];
+}
+
+export interface StaticTransitCatalog {
+  feed_id: string;
+  feed_name: string;
+  source: string;
+  lines: CatalogLine[];
+  stops: CatalogStop[];
+}
