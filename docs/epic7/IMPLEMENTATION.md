@@ -2,7 +2,7 @@
 
 **Implementation specification for Iteration 2**  
 **Branch:** `epic7`  
-**Status:** Commits 0–6 delivered (rail selectable + fail-closed). **Next:** bus pilot via KRI historical vehicle positions — see §2.1 (ingest) and §7.2 (arrival detection).
+**Status:** Commits 0–7 delivered (rail fail-closed + KRI vehicle-position ingest). **Next:** §2.1 trip matching → arrival detection (`epic7-realtime-trip-matching`, `epic7-arrival-detection`).
 
 This document is the single source of business logic and implementation order. Implement one section at a time; each section maps to a git commit named `epic7-<feature>`.
 
@@ -105,7 +105,7 @@ Historical RT (KRI / archived vehicle positions)
 
 ---
 
-## 2.1 Bus pilot — KRI data ingest + arrival detection (NEXT)
+## 2.1 Bus pilot — KRI data ingest + arrival detection
 
 This section is the implementation brief for the next coding commits. It does **not** enable rail predictions.
 

@@ -53,6 +53,8 @@ backend/.mypy_cache/
 backend/*.egg-info/
 backend/data/raw/
 backend/data/processed/
+backend/data/kri/**
+!backend/data/kri/README.md
 backend/artifacts/
 
 # AWS deployment artefacts: identifies your infrastructure, not the project.
