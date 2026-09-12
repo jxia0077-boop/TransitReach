@@ -1,0 +1,15 @@
+{
+  "categorical": [
+    "route_id",
+    "stop_id"
+  ],
+  "numeric": [
+    "stop_sequence",
+    "hour",
+    "day_of_week",
+    "is_weekend",
+    "historical_median_delay",
+    "historical_mean_delay"
+  ],
+  "target": "actual_delay_minutes"
+}

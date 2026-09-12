@@ -55,7 +55,10 @@ backend/data/raw/
 backend/data/processed/
 backend/data/kri/**
 !backend/data/kri/README.md
-backend/artifacts/
+# Keep published model packs; ignore other artifact scratch dirs.
+backend/artifacts/**
+!backend/artifacts/reliability-v1/
+!backend/artifacts/reliability-v1/**
 
 # AWS deployment artefacts: identifies your infrastructure, not the project.
 routing/deploy/created-resources.txt

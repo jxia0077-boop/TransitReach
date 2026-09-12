@@ -1,0 +1,32 @@
+{
+  "model_version": "reliability-v1",
+  "model_type": "CatBoostRegressor",
+  "data_sources": [
+    "gtfs_static",
+    "historical_operational_observations",
+    "kri_gklmob_busindex"
+  ],
+  "operators": [
+    "mrt_feeder"
+  ],
+  "training_period": {
+    "start": "2025-04-02",
+    "end": "2025-04-10"
+  },
+  "evaluation": {
+    "split": "chronological_70_15_15",
+    "baseline_mae": 7.172151655119323,
+    "baseline_rmse": 14.18773055760861,
+    "model_mae": 6.60062804975925,
+    "model_rmse": 11.499778221669084,
+    "n_train": 62636,
+    "n_valid": 13422,
+    "n_test": 13423
+  },
+  "evaluation_recorded": true,
+  "prediction_enable_allowed": true,
+  "prediction_enabled": false,
+  "created_at_utc": "2026-09-12T16:44:42.838861+00:00",
+  "note": "Raw KRI archives are training-only. Runtime serves this artifact directory; do not require backend/data/kri at inference time.",
+  "n_label_rows": 89481
+}
