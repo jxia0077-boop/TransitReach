@@ -2,7 +2,7 @@
 
 **Implementation specification for Iteration 2**  
 **Branch:** `epic7`  
-**Status:** Spec committed first. Training / live prediction **blocked** until historical operational ground truth exists (see §2).
+**Status:** Commits 0–6 delivered (rail selectable + fail-closed). **Next:** bus pilot via KRI historical vehicle positions — see §2.1 (ingest) and §7.2 (arrival detection).
 
 This document is the single source of business logic and implementation order. Implement one section at a time; each section maps to a git commit named `epic7-<feature>`.
 
@@ -102,6 +102,194 @@ Historical RT (KRI / archived vehicle positions)
 ```
 
 **Until bus model is validated: rail UI/API remain unavailable; commits 0–6 stay the rail shell.**
+
+---
+
+## 2.1 Bus pilot — KRI data ingest + arrival detection (NEXT)
+
+This section is the implementation brief for the next coding commits. It does **not** enable rail predictions.
+
+### Goals
+
+1. **Ingest** Rapid KL Bus + MRT Feeder historical vehicle-position archives (KRI layout / equivalent).  
+2. **Join** to matching GTFS Static schedules.  
+3. **Detect** stop arrivals with a documented geofence algorithm.  
+4. **Emit** training-ready rows with `actual_delay_minutes` and quality flags.  
+5. Keep rail capability fail-closed with the rail unavailable message.
+
+### Primary external reference
+
+| Item | Detail |
+|------|--------|
+| Repo | [KRI-Data/GKLMOB_BUSINDEX](https://github.com/KRI-Data/GKLMOB_BUSINDEX) |
+| Purpose | Bus Performance Index using GTFS Static + high-frequency RT for Rapid KL Bus and MRT Feeder (punctuality, headway, reliability) |
+| Static layout | `GTFS/GTFS_S/<operator>/` — at least `routes.txt`, `stops.txt`, `stop_times.txt` (+ `trips.txt` for MRT Feeder) |
+| RT layout | `GTFS/GTFS_RT/<operator>/<YYYY_MM>/` — daily files e.g. `bus_positions_YYYY_MM-DD.csv` or `mrt_positions_YYYY_MM-DD.csv` |
+| KRI preprocess | `03_bus_preprocess.R` extracts arrival timestamps; `04_merge_rt_static_gtfs.R` merges RT with static |
+| Study note | KRI focuses on non-public-holiday weekdays; incomplete RT dates listed under `Incomplete Data/` |
+
+Also usable live source (for freshness / gap-fill, not as sole ground truth):
+
+- `https://api.data.gov.my/gtfs-realtime/vehicle-position/prasarana/?category=rapid-bus-kl`
+- `https://api.data.gov.my/gtfs-realtime/vehicle-position/prasarana/?category=rapid-bus-mrtfeeder`
+
+### Local data layout (TransitReach)
+
+Place bulky archives **outside git** (already ignored patterns under `data/` / `backend/data/`):
+
+```text
+backend/data/
+  kri/
+    README.md                 # provenance: URL, licence, download date, months used
+    GTFS_S/
+      rapid_kl/               # or symlink to KRI GTFS/GTFS_S/Rapid KL
+      mrt_feeder/
+    GTFS_RT/
+      rapid_kl/
+        2025_04/
+          bus_positions_2025_04-01.csv
+          ...
+      mrt_feeder/
+        2025_04/
+          mrt_positions_2025_04-01.csv
+          ...
+  processed/
+    vehicle_positions/        # normalised Parquet partitions
+    arrivals/                 # geofence outputs
+    training/                 # delay-labelled table
+```
+
+**Licence / attribution:** record KRI + data.gov.my / Prasarana CC-BY-4.0 (or whatever the archive states) in `backend/data/kri/README.md`. Do not commit multi-GB CSVs.
+
+### Normalised vehicle-position schema (after ingest)
+
+Every KRI/live row must map into:
+
+| Field | Required | Notes |
+|-------|----------|--------|
+| `operator` | yes | `rapid_kl` \| `mrt_feeder` |
+| `timestamp` | yes | Observation time (document timezone: prefer Asia/Kuala_Lumpur) |
+| `latitude`, `longitude` | yes | Drop (0,0) / impossible coords |
+| `trip_id` | preferred | For AC 7.2.1 matching |
+| `route_id` | preferred | Fallback match key |
+| `vehicle_id` | preferred | Continuity / headway |
+| `speed`, `bearing` | optional | Live features later |
+| `source_file` | yes | Provenance |
+| `ingest_batch_id` | yes | Reproducibility |
+
+**Commit:** `epic7-kri-vehicle-position-ingest`
+
+Deliverables for that commit:
+
+- `data_pipeline/kri_layout.py` — path helpers + operator constants  
+- `data_pipeline/kri_vehicle_position_loader.py` — read daily CSVs → Parquet  
+- Column mapping documented (KRI column names → normalised schema)  
+- Fixture: 1–2 tiny CSV days under `backend/tests/fixtures/kri/`  
+- Tests: parse fixture, reject null coords, partition by date/operator  
+
+### Trip matching (Static ↔ observation)
+
+**Commit:** `epic7-realtime-trip-matching` (bus pilot uses same module)
+
+Rules:
+
+1. Prefer exact `trip_id` join to GTFS Static `trips` / `stop_times`.  
+2. Else attempt `route_id` + time window + direction heuristics — only if documented and confidence flagged.  
+3. Unmatched → `match_quality_ok=false`, `data_quality_flags+=["match_failed"]`, **exclude from training labels**.  
+4. Never invent a `trip_id`.
+
+### Arrival detection (geofence) — business algorithm
+
+**Commit:** `epic7-arrival-detection`
+
+**Purpose:** derive `actual_arrival` at a stop from a time-ordered vehicle track. Never copy from `stop_times.arrival_time`.
+
+#### Default geofence parameters (configurable)
+
+| Parameter | Default | Meaning |
+|-----------|---------|---------|
+| `geofence_radius_m` | 50 | Stop considered “at station” inside this radius |
+| `min_samples_in_geofence` | 2 | Require ≥ N points to reduce GPS flicker |
+| `max_gap_seconds` | 120 | Break visit if gap between points larger than this |
+| `arrival_rule` | `first_entry` | Timestamp of first point that enters the geofence for a visit |
+| `dedupe_reentry_seconds` | 180 | Ignore re-entries within this window as same visit |
+
+Document any change to defaults in model registry metadata.
+
+#### Algorithm (per vehicle trip / day)
+
+```
+1. Load ordered positions for (vehicle_id or trip_id, service_date).
+2. For each stop on the matched scheduled trip (by stop_sequence):
+   a. Compute Haversine distance from each point to stop lat/lon.
+   b. Mark points with distance <= geofence_radius_m as INSIDE.
+   c. Segment contiguous INSIDE runs (respect max_gap_seconds).
+   d. Keep segments with count >= min_samples_in_geofence.
+   e. actual_arrival = timestamp of first point of the first valid segment
+      (first_entry rule), after previous stop's arrival if sequence known.
+3. If no valid segment → no label; flag no_geofence_hit.
+4. If multiple ambiguous segments and sequence unclear → flag ambiguous_arrival; exclude.
+5. scheduled_arrival = service_date + stop_times.arrival_time (handle >24:00).
+6. actual_delay_minutes = (actual_arrival − scheduled_arrival) in minutes.
+7. Persist OperationalObservation with match_quality_ok and data_quality_flags.
+```
+
+#### Quality flags (non-exhaustive)
+
+| Flag | When |
+|------|------|
+| `match_failed` | No reliable trip/route match |
+| `no_geofence_hit` | Never entered stop radius |
+| `insufficient_samples` | Inside but fewer than `min_samples_in_geofence` |
+| `ambiguous_arrival` | Conflicting visits / sequence break |
+| `schedule_missing` | No scheduled time for stop |
+| `coord_invalid` | Bad lat/lon dropped upstream |
+| `incomplete_day` | Date listed incomplete in KRI Incomplete Data |
+
+**Training rule:** only rows with `match_quality_ok=true` and empty critical flags enter ML labels.
+
+#### Alignment with KRI methodology
+
+KRI’s R scripts (`03_bus_preprocess`, `04_merge_rt_static_gtfs`) already extract stop arrivals for BPI. TransitReach should:
+
+- Prefer **reimplementing** arrival detection in Python with the parameters above (testable, same pipeline as live RT), **or**  
+- Optionally import KRI matched outputs as an alternate input **only if** schema mapping and quality rules are documented and fixtures prove equivalence on a sample day.
+
+Do not treat KRI BPI scores as `actual_delay_minutes` without verifying they are stop-level arrival deltas vs schedule.
+
+### Module map (backend)
+
+```text
+backend/data_pipeline/
+  kri_layout.py
+  kri_vehicle_position_loader.py   # ingest
+  realtime_trip_matching.py        # Static ↔ RT
+  arrival_detector.py              # geofence → actual_arrival
+  build_training_dataset.py        # next commit after detection
+backend/tests/fixtures/kri/
+  ...
+```
+
+### Acceptance checks for ingest + detection
+
+1. Fixture day loads without network.  
+2. Invalid coordinates excluded.  
+3. Matched trip + geofence hit → non-null `actual_arrival` and `actual_delay_minutes`.  
+4. Unmatched / no geofence → no training label, flags set.  
+5. `scheduled_arrival` never written into `actual_arrival`.  
+6. Rail predict message unchanged (still realtime-history unavailable).
+
+### Runbook (to fill with exact paths once data is downloaded)
+
+```bash
+# 1) Obtain KRI GTFS_S + GTFS_RT months (or clone sparse checkout) → backend/data/kri/
+# 2) Normalise positions
+python -m data_pipeline.kri_vehicle_position_loader --operator rapid_kl --month 2025_04
+python -m data_pipeline.kri_vehicle_position_loader --operator mrt_feeder --month 2025_04
+# 3) Match + detect arrivals
+python -m data_pipeline.arrival_detector --operator rapid_kl --date 2025-04-01
+# 4) Inspect Parquet under backend/data/processed/arrivals/
+```
 
 ---
 
@@ -372,21 +560,26 @@ Optional later: `previous_stop_delay`, `vehicle_speed`, bunching, active vehicle
 
 **Commit:** `epic7-gtfs-static-loader`
 
-### 7.2 Historical / realtime operational pipeline
+### 7.2 Historical / realtime operational pipeline (bus pilot first)
 
-**Inputs:** high-frequency vehicle positions.  
+**Inputs:**
+
+- KRI (or equivalent) historical vehicle-position CSVs for Rapid KL Bus + MRT Feeder — see **§2.1**.  
+- Optional live GTFS-RT protobuf polls for the same operators (freshness / live-adjusted later).  
+- GTFS Static for the same operators (`rapid-bus-kl`, `rapid-bus-mrtfeeder`).
 
 **Steps:**
 
-1. Match observation → scheduled trip.  
-2. Map to stop via **documented geofence** (radius + optional bearing/sequence).  
-3. Prefer multiple samples to reduce GPS noise.  
-4. Compute `actual_arrival`, then `actual_delay_minutes`.  
-5. Attach data-quality flags; drop bad rows from training.
+1. **Ingest** daily position files → normalised Parquet (`epic7-kri-vehicle-position-ingest`).  
+2. **Match** observation → scheduled trip (`epic7-realtime-trip-matching`).  
+3. **Detect** stop arrival via **documented geofence** (§2.1 defaults) (`epic7-arrival-detection`).  
+4. Prefer multiple samples in-fence to reduce GPS noise.  
+5. Compute `actual_arrival`, then `actual_delay_minutes`.  
+6. Attach data-quality flags; drop bad rows from training (`epic7-build-training-dataset`).
 
 **Forbidden:** using `scheduled_arrival` as `actual_arrival`.
 
-**Commit:** `epic7-arrival-detection` then `epic7-build-training-dataset`
+**Rail:** do not invent labels; keep capability fail-closed.
 
 ### 7.3 Feature engineering (MVP historical)
 
@@ -516,9 +709,10 @@ Use these exact commit message prefixes on branch `epic7`:
 | 4 | `epic7-capability-layer` | Capability matrix; all rail prediction_available=false until data |
 | 5 | `epic7-reliability-api-unavailable` | Predict endpoint always fail-closed + contract tests |
 | 6 | `epic7-reliability-ui` | Form + unsupported/loading/error cards; no fake numbers |
-| 7 | `epic7-realtime-ingestion` | Poll + store RT (when feed exists); bus optional pilot |
-| 8 | `epic7-realtime-trip-matching` | Match RT ↔ static |
-| 9 | `epic7-arrival-detection` | Geofence → actual_arrival + quality flags |
+| 6b | `epic7-bus-pilot-plan-rail-message` | Bus pilot decision + rail-specific unavailable copy |
+| 7 | `epic7-kri-vehicle-position-ingest` | KRI/local RT CSV → normalised Parquet (§2.1) |
+| 8 | `epic7-realtime-trip-matching` | Match RT ↔ static (bus/feeder) |
+| 9 | `epic7-arrival-detection` | Geofence → actual_arrival + quality flags (§2.1) |
 | 10 | `epic7-build-training-dataset` | Training table Parquet/SQLite |
 | 11 | `epic7-feature-engineering` | Historical (+ live) features |
 | 12 | `epic7-baseline-and-catboost` | Baseline + CatBoost train scripts |
@@ -565,17 +759,33 @@ Use these exact commit message prefixes on branch `epic7`:
 
 ## 13. Runbooks (fill when code exists)
 
-### Ingest static
+### Ingest static (rail catalog — already used)
 
 ```bash
-# download rapid-rail-kl GTFS → backend data dir
+# Frontend derived JSON is the default catalog for MRT/LRT/BRT selection.
+# Bus pilot static: download rapid-bus-kl / rapid-bus-mrtfeeder into backend/data/
 # python -m data_pipeline.gtfs_static_loader
 ```
 
-### Collect RT (when available)
+### Ingest KRI historical vehicle positions (bus pilot)
 
 ```bash
-# python -m data_pipeline.realtime_loader --interval 20
+# Place KRI GTFS_S + GTFS_RT under backend/data/kri/ (see §2.1)
+# python -m data_pipeline.kri_vehicle_position_loader --operator rapid_kl --month 2025_04
+# python -m data_pipeline.kri_vehicle_position_loader --operator mrt_feeder --month 2025_04
+```
+
+### Arrival detection
+
+```bash
+# python -m data_pipeline.arrival_detector --operator rapid_kl --date 2025-04-01
+# Outputs: backend/data/processed/arrivals/
+```
+
+### Optional live RT poll (gap-fill / later live-adjusted)
+
+```bash
+# python -m data_pipeline.realtime_loader --category rapid-bus-mrtfeeder --interval 20
 ```
 
 ### Build training set / train / evaluate
@@ -599,29 +809,34 @@ Use these exact commit message prefixes on branch `epic7`:
 
 | Service | Visible in UI | prediction_available | Reason |
 |---------|---------------|----------------------|--------|
-| All loaded MRT/LRT/BRT lines from rapid-rail-kl | Yes (after catalog) | **No** | No historical operational ground truth in repo; no stable public rail RT to derive actual arrivals |
-| Rapid Bus (not in epic scope) | N/A | Potentially later | RT exists but epic scope is MRT/LRT/BRT |
+| All loaded MRT/LRT/BRT lines from rapid-rail-kl | Yes | **No** | Message: realtime operational history unavailable for this service |
+| Rapid Bus KL | Not yet in reliability UI (pilot next) | **No until eval gate** | Use KRI historical RT + static; enable after MAE/RMSE recorded |
+| MRT Feeder | Not yet in reliability UI (pilot next) | **No until eval gate** | Same pipeline as Rapid Bus |
 
-Update this table when collection + evaluation gate pass.
+Update this table when ingest + arrival detection + evaluation gate pass for bus/feeder.
 
 ---
 
 ## 15. Known limitations
 
 1. Public **rail** GTFS-RT gap blocks real delay labels for MRT/LRT/BRT.  
-2. Live-adjusted mode requires fresh RT; otherwise historical only.  
+2. Bus pilot depends on obtaining KRI (or equivalent) archives locally — large files, not in git.  
 3. Geofence arrivals are approximate; quality flags mandatory.  
-4. Risk bands are **relative** to history, not absolute comfort.  
-5. Predictions are not journey planners / OTP replacements.
+4. Live-adjusted mode requires fresh RT; otherwise historical only.  
+5. Risk bands are **relative** to history, not absolute comfort.  
+6. Predictions are not journey planners / OTP replacements.  
+7. Official `rapid-bus-kl` static `stop_times` have had known accuracy issues on data.gov.my — validate coverage before enabling routes.
 
 ---
 
 ## 16. Recommended next steps after this spec
 
-1. Confirm with mentors: **collect RT archive** vs **narrow epic** vs **bus pilot** under same pipeline.  
-2. Implement commits `epic7-backend-scaffold` → `epic7-reliability-ui` (fail-closed).  
-3. Start collectors early — ML needs calendar time.  
-4. Only then train CatBoost and flip capability flags per line.
+1. ~~Confirm bus pilot~~ — **accepted** (KRI historical RT + Bus/MRT Feeder).  
+2. ~~Rail shell commits 0–6~~ — **done**.  
+3. **Implement §2.1:** `epic7-kri-vehicle-position-ingest` → `epic7-realtime-trip-matching` → `epic7-arrival-detection`.  
+4. Build training table → baseline vs CatBoost → registry gate → enable bus/feeder only.  
+5. Extend reliability UI modes to include bus/feeder when capability flips.  
+6. Revisit rail when public rail RT history exists.
 
 ---
 
