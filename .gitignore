@@ -44,6 +44,17 @@ yarn-error.log*
 # Test output
 coverage/
 
+# Python / Epic 7 backend
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.py[cod]
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/*.egg-info/
+backend/data/raw/
+backend/data/processed/
+backend/artifacts/
+
 # AWS deployment artefacts: identifies your infrastructure, not the project.
 routing/deploy/created-resources.txt
 routing/deploy/*.pem
