@@ -3,6 +3,7 @@ import {
   Map,
   Building2,
   Clock,
+  Gauge,
   Route,
   TrendingUp,
   BookOpen,
@@ -30,6 +31,7 @@ export const NAV_ITEMS: NavItem[] = [
   // that merging it into the map panel removed.
   { id: 'services', label: 'Services', icon: Building2, hidden: true },
   { id: 'time', label: 'Time', icon: Clock },
+  { id: 'reliability', label: 'Reliability', icon: Gauge },
   { id: 'scenario', label: 'Scenarios', icon: Route, hidden: true },
   { id: 'typology', label: 'Typology', icon: TrendingUp, hidden: true },
   { id: 'methodology', label: 'Method', icon: BookOpen, hidden: true },

@@ -8,6 +8,7 @@ import { LandingPage } from '@/pages/LandingPage';
 import { MapPage } from '@/pages/MapPage';
 import type { MapAnalysisTab } from '@/pages/components/MapAnalysisPanel';
 import { TimeComparisonPage } from '@/pages/future/TimeComparisonPage';
+import { ReliabilityPage } from '@/pages/ReliabilityPage';
 import { ScenarioPage } from '@/pages/future/ScenarioPage';
 import { TypologyPage } from '@/pages/future/TypologyPage';
 import { MethodologyPage } from '@/pages/MethodologyPage';
@@ -80,6 +81,7 @@ function App() {
           />
         )}
         {activePage === 'time' && <TimeComparisonPage journey={journey} />}
+        {activePage === 'reliability' && <ReliabilityPage />}
         {activePage === 'scenario' && <ScenarioPage />}
         {activePage === 'typology' && <TypologyPage />}
         {activePage === 'methodology' && <MethodologyPage />}

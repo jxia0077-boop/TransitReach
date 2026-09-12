@@ -3,6 +3,7 @@ export type PageId =
   | 'map'
   | 'services'
   | 'time'
+  | 'reliability'
   | 'scenario'
   | 'typology'
   | 'methodology';

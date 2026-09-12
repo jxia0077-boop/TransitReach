@@ -85,6 +85,16 @@ export default defineConfig({
         timeout: 15_000,
         proxyTimeout: 15_000,
       },
+
+      /**
+       * Epic 7 — reliability API (local FastAPI backend).
+       */
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        timeout: 30_000,
+        proxyTimeout: 30_000,
+      },
     },
   },
 });
