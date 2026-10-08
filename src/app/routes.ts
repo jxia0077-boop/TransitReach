@@ -3,7 +3,7 @@ export type PageId =
   | 'map'
   | 'services'
   | 'time'
-  | 'scenario'
+  | 'planner'
   | 'typology'
   | 'meeting'
   | 'passes'

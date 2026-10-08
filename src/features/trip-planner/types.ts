@@ -33,6 +33,12 @@ export interface OutingStop {
   visitMinutes: number;
 }
 
+/** AC 2.1.2 — where the outing ends: at the last stop, back at the start, or elsewhere. */
+export type FinalDestination =
+  | { kind: 'none' }
+  | { kind: 'origin' }
+  | { kind: 'place'; point: TripPoint };
+
 export interface TripPlanRequest {
   origin: TripPoint;
   /** An instant, e.g. `2026-10-10T09:00:00+08:00`. */
