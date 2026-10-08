@@ -55,11 +55,19 @@ export function OrderComparison({ plan, limitMinutes, selectedId, onSelect }: Or
                   <span className="text-sm font-bold text-slate-800">{durationLabel(order.totals.elapsedSeconds)}</span>
                 )}
               </div>
-              <ol className="mt-1.5 text-xs text-slate-600 leading-snug">
-                {order.stopIds.map((id, index) => (
-                  <li key={id} className="truncate">{index + 1}. {names.get(id)}</li>
-                ))}
-              </ol>
+              {/* Only the selected order is spelled out as a list: with five stops, four full
+                  lists pushed the itinerary below them off the panel. */}
+              {selected ? (
+                <ol className="mt-1.5 text-xs text-slate-600 leading-snug">
+                  {order.stopIds.map((id, index) => (
+                    <li key={id} className="truncate">{index + 1}. {names.get(id)}</li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="mt-1.5 text-xs text-slate-600 leading-snug line-clamp-2">
+                  {order.stopIds.map(id => names.get(id)).join(' → ')}
+                </p>
+              )}
               {order.feasible && order.totals ? (
                 <p className="mt-1.5 text-[11px] text-slate-500">
                   Finish {aroundTime(order.totals.finishTime)} · {durationLabel(order.totals.walkSeconds)} walking ·{' '}
