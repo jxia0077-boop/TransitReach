@@ -72,8 +72,25 @@ export function GroupOutingView({ room, me, members, onBack, onSuggestTime, onPu
     finally { setActionBusy(false); }
   };
 
+  // PersonalPassView already owns "Back to invitation"; keep a single page-level
+  // back control only when that view is not on screen.
+  const showPageBack = !(passOpen && state.status === 'ready');
+
   return <main className="outing-page">
-    <div className="flex flex-wrap justify-between gap-3 items-center mb-6"><button className="flex items-center gap-2 outing-muted text-sm" onClick={onBack}><ArrowLeft size={16} aria-hidden="true" />Back to planning</button><span className="outing-badge">Room {room.code} · Plan v{plan.version}</span></div>
+    <div className="flex flex-wrap justify-between gap-3 items-center mb-6">
+      {showPageBack ? (
+        <button
+          className="flex items-center gap-2 outing-muted text-sm"
+          onClick={passOpen ? () => setPassOpen(false) : onBack}
+        >
+          <ArrowLeft size={16} aria-hidden="true" />
+          {passOpen ? 'Back to invitation' : 'Back to planning'}
+        </button>
+      ) : (
+        <span />
+      )}
+      <span className="outing-badge">Room {room.code} · Plan v{plan.version}</span>
+    </div>
     {error && <p className="outing-warning mb-5" role="alert">{error}</p>}
     {notice && <p className="outing-card-inset mb-5 outing-accent" role="status">{notice}</p>}
     <div className={`grid gap-6 ${passOpen && state.status === 'ready' ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]' : 'lg:grid-cols-2'}`}>
