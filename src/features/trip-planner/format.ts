@@ -1,7 +1,7 @@
 import { legTitle } from '@/features/interchange/interchangeService';
 import type { ModelledJourney } from '@/features/interchange/types';
 import { passTime } from '@/features/outing-pass/components/passPresentation';
-import type { InfeasibleReason } from './types';
+import type { InfeasibleReason, TripPlan } from './types';
 
 /**
  * Every clock time in the planner goes through here. Rail times are generated from
@@ -28,6 +28,46 @@ export function journeyModes(journey: ModelledJourney): string {
     if (labels[labels.length - 1] !== label) labels.push(label);
   }
   return labels.join(' → ');
+}
+
+/** AC 2.4.2 — states the excess; never a bare "within budget" for an outing that is not. */
+export function limitLabel(overSeconds: number, limitMinutes: number): string {
+  const limit = durationLabel(limitMinutes * 60);
+  return overSeconds >= 60
+    ? `Over your ${limit} limit by ${durationLabel(overSeconds)}`
+    : `Within your ${limit} limit`;
+}
+
+/**
+ * AC 2.4.3 — why no order works, said once per cause instead of once per order: a place
+ * that is closed whenever it would be reached, or a pair of places with no journey.
+ */
+export function noPlanReasons(plan: TripPlan): string[] {
+  const hours = new Map(plan.request.stops.map(stop => [stop.service.id, stop.service.hours]));
+  const closed = new Map<string, { name: string; arrivals: number[] }>();
+  const unrouted = new Set<string>();
+  for (const order of plan.orders) {
+    for (const reason of order.reasons) {
+      if (reason.kind === 'no-route') {
+        unrouted.add(`No journey was found from ${reason.fromName} to ${reason.toName} at the time it would be travelled.`);
+      } else {
+        const entry = closed.get(reason.stopId) ?? { name: reason.stopName, arrivals: [] };
+        entry.arrivals.push(Date.parse(reason.arrivalTime));
+        closed.set(reason.stopId, entry);
+      }
+    }
+  }
+  return [
+    ...[...closed].map(([id, { name, arrivals }]) => {
+      const earliest = Math.min(...arrivals);
+      const latest = Math.max(...arrivals);
+      const when = latest - earliest < 60_000
+        ? aroundTime(earliest)
+        : `between ${passTime(earliest)} and ${passTime(latest)}`;
+      return `${name} is closed at its estimated arrival, ${when}. Its listed hours are ${hours.get(id)}.`;
+    }),
+    ...unrouted,
+  ];
 }
 
 export function reasonLabel(reason: InfeasibleReason): string {

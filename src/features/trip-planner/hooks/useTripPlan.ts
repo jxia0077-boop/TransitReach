@@ -17,7 +17,10 @@ export interface TripPlanController {
   plan: () => void;
 }
 
-/** Everything that changes the answer; names and other display fields are left out. */
+/**
+ * Everything that changes the journeys; names and other display fields are left out. So is
+ * the whole-outing limit: it is a comparison against the result, applied as it is set.
+ */
 function requestKey(request: TripPlanRequest | null): string | null {
   return request && JSON.stringify([
     request.origin.lat,
@@ -25,7 +28,6 @@ function requestKey(request: TripPlanRequest | null): string | null {
     request.departureTime,
     request.stops.map(stop => [stop.service.id, stop.visitMinutes]),
     request.final && [request.final.lat, request.final.lon],
-    request.limitMinutes,
   ]);
 }
 

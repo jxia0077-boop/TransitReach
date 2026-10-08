@@ -11,4 +11,5 @@ export { ItineraryTimeline } from './components/ItineraryTimeline';
 export { TripSummary } from './components/TripSummary';
 export { useTripPlan } from './hooks/useTripPlan';
 export type { TripPlanController, TripPlanState } from './hooks/useTripPlan';
-export { aroundTime, reasonLabel } from './format';
+export { aroundTime, limitLabel, noPlanReasons, reasonLabel } from './format';
+export { overLimitSeconds } from './visitOrder';

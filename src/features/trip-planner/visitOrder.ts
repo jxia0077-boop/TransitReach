@@ -151,6 +151,11 @@ export function selectForExact<D>(estimates: Chain<D>[], userOrderId: string, li
   return chosen.map(chain => chain.stops);
 }
 
+/** AC 2.4.2 — seconds beyond the whole-outing limit; 0 within it; null with no limit. */
+export function overLimitSeconds(elapsedSeconds: number, limitMinutes: number | null): number | null {
+  return limitMinutes === null ? null : Math.max(0, elapsedSeconds - limitMinutes * 60);
+}
+
 export function toPlannedOrder(
   chain: Chain<ModelledJourney>,
   request: TripPlanRequest,
@@ -181,8 +186,6 @@ export function toPlannedOrder(
       walkSeconds: legs.reduce((total, leg) => total + leg.journey.walkTimeSeconds, 0),
       transfers: legs.reduce((total, leg) => total + leg.journey.interchanges.length, 0),
     },
-    overLimitSeconds: request.limitMinutes === null || elapsedSeconds === null
-      ? null
-      : Math.max(0, elapsedSeconds - request.limitMinutes * 60),
+    overLimitSeconds: elapsedSeconds === null ? null : overLimitSeconds(elapsedSeconds, request.limitMinutes),
   };
 }

@@ -22,6 +22,7 @@ import {
   TripMapLayer,
   TripSummary,
   aroundTime,
+  noPlanReasons,
   stopPoint,
   useTripPlan,
   type FinalDestination,
@@ -34,6 +35,9 @@ import { loadRailFeedMetadata } from '@/shared/data/adapters/gtfsAdapter';
 import { addDays, malaysiaToday } from './components/WeatherPlanning';
 
 const OUTSIDE_AREA = 'That point is outside the area the transit data covers.';
+
+/** AC 2.4.2 — limits offered for the whole outing, visits included. */
+const LIMIT_HOURS = [2, 3, 4, 5, 6, 8];
 
 const FINAL_OPTIONS: Array<{ kind: FinalDestination['kind']; label: string }> = [
   { kind: 'none', label: 'At the last stop' },
@@ -273,6 +277,18 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
           )}
         </fieldset>
 
+        <label className="mt-4 flex items-center justify-between gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+          Whole-outing limit
+          <select
+            value={draft.limitMinutes ?? ''}
+            onChange={event => draft.setLimitMinutes(event.target.value ? Number(event.target.value) : null)}
+            className="glass-input rounded-lg px-2 py-1 text-xs font-semibold normal-case"
+          >
+            <option value="">No limit</option>
+            {LIMIT_HOURS.map(hours => <option key={hours} value={hours * 60}>{hours} hours</option>)}
+          </select>
+        </label>
+
         <p role="status" className="mt-4 text-xs text-slate-500">
           {missing.length > 0 ? `Still needed: ${missing.join(', ')}.` : 'This outing is ready to plan.'}
         </p>
@@ -336,8 +352,25 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
               ) : (
                 <>
                   <h2 className="text-lg font-bold">Your outing</h2>
-                  <OrderComparison plan={plan} selectedId={order.id} onSelect={setSelectedOrderId} />
-                  {order.totals && <TripSummary totals={order.totals} />}
+                  {!plan.orders.some(candidate => candidate.feasible) && (
+                    <div role="alert" className="outing-warning text-xs leading-relaxed">
+                      <p className="text-sm font-bold">
+                        {plan.ordersCalculated === plan.ordersConsidered
+                          ? 'No order of these stops can be completed.'
+                          : `None of the ${plan.ordersCalculated} closest orders can be completed.`}
+                      </p>
+                      <ul className="mt-2 list-disc space-y-1 pl-4">
+                        {noPlanReasons(plan).map(reason => <li key={reason}>{reason}</li>)}
+                      </ul>
+                      <p className="mt-2">
+                        Change the departure time, a visit length or the stops, then replan. Everything you entered is still there.
+                      </p>
+                      <button type="button" onClick={() => setInputsOpen(true)} className="btn-secondary mt-2 text-xs lg:hidden">Edit outing</button>
+                    </div>
+                  )}
+                  <OrderComparison plan={plan} limitMinutes={draft.limitMinutes} selectedId={order.id} onSelect={setSelectedOrderId} />
+                  {/* An order that cannot be completed has a timeline to explain it, not a result. */}
+                  {order.feasible && order.totals && <TripSummary totals={order.totals} />}
                   <ItineraryTimeline plan={plan} order={order} onOpenLeg={setOpenLegId} />
                   <details className="planning-disclosure">
                     <summary>How these times are estimated</summary>
