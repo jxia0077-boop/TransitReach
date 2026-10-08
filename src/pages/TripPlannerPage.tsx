@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { JourneyDetail, JourneyMapLayer } from '@/features/interchange';
 import { BaseMap, LocationSearch } from '@/features/reachability';
 import {
   formatCoord,
@@ -11,15 +13,23 @@ import {
 } from '@/features/reachability/reachabilityService';
 import type { Journey, Origin } from '@/features/reachability/types';
 import {
+  ItineraryTimeline,
   MAX_STOPS,
   MIN_STOPS,
+  OrderComparison,
   OutingStopList,
   StopSearch,
   TripMapLayer,
+  TripSummary,
+  aroundTime,
   stopPoint,
+  useTripPlan,
   type FinalDestination,
   type OutingDraft,
+  type TripPlanProgress,
+  type TripPlanRequest,
 } from '@/features/trip-planner';
+import type { WalkStep } from '@/shared/services/transitRoutingClient';
 import { loadRailFeedMetadata } from '@/shared/data/adapters/gtfsAdapter';
 import { addDays, malaysiaToday } from './components/WeatherPlanning';
 
@@ -30,6 +40,13 @@ const FINAL_OPTIONS: Array<{ kind: FinalDestination['kind']; label: string }> = 
   { kind: 'origin', label: 'Back at the start' },
   { kind: 'place', label: 'Somewhere else' },
 ];
+
+function progressLabel(progress: TripPlanProgress | null): string {
+  if (!progress) return 'Comparing visit orders…';
+  return progress.phase === 'estimating'
+    ? `Estimating travel between places · ${progress.done} of ${progress.total}`
+    : `Calculating the closest orders leg by leg · ${progress.done} of ${progress.total}`;
+}
 
 function originName(origin: Origin): string {
   return origin.place?.name ?? origin.stop?.name ?? origin.busStop?.name ??
@@ -78,6 +95,48 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
     if (kind !== 'place') draft.setFinal({ kind });
   };
 
+  const request = useMemo<TripPlanRequest | null>(() => {
+    if (!origin || draft.stops.length < MIN_STOPS || !supportedDates.includes(departure.slice(0, 10))) return null;
+    if (choosingFinalPlace && !finalPlace) return null;
+    const start = { id: 'origin', name: originName(origin), lat: origin.at.lat, lon: origin.at.lon };
+    return {
+      origin: start,
+      departureTime: `${departure}:00+08:00`,
+      stops: draft.stops,
+      final: finalPlace ?? (draft.final.kind === 'origin' ? { ...start, id: 'final' } : null),
+      limitMinutes: draft.limitMinutes,
+    };
+  }, [origin, departure, supportedDates, draft.stops, draft.final, draft.limitMinutes, finalPlace, choosingFinalPlace]);
+
+  const trip = useTripPlan(request);
+  const plan = trip.state.status === 'ready' ? trip.state.plan : null;
+  const planVersion = trip.state.status === 'ready' ? trip.state.version : null;
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [openLegId, setOpenLegId] = useState<string | null>(null);
+  const [inputsOpen, setInputsOpen] = useState(true);
+  const [highlightedLegId, setHighlightedLegId] = useState<string | null>(null);
+  const [focusedStep, setFocusedStep] = useState<WalkStep | null>(null);
+  // A new plan starts on its shortest order, with no leg open.
+  useEffect(() => {
+    setSelectedOrderId(null);
+    setOpenLegId(null);
+  }, [planVersion]);
+  useEffect(() => {
+    setHighlightedLegId(null);
+    setFocusedStep(null);
+  }, [openLegId, selectedOrderId]);
+
+  const order = plan?.orders.find(candidate => candidate.id === selectedOrderId) ?? plan?.orders[0] ?? null;
+  const openLeg = order?.legs.find(leg => leg.id === openLegId) ?? null;
+  // The map follows the plan while it still describes the outing, and the draft otherwise.
+  const shownOrder = plan !== null && !trip.outOfDate ? order : null;
+  const mapStops = useMemo(
+    () => shownOrder
+      ? shownOrder.stopIds.flatMap(id => stopPoints.find(point => point.id === id) ?? [])
+      : stopPoints,
+    [shownOrder, stopPoints],
+  );
+
   const missing = [
     !origin && 'a starting point',
     draft.stops.length < MIN_STOPS && `${MIN_STOPS - draft.stops.length} more ${MIN_STOPS - draft.stops.length === 1 ? 'stop' : 'stops'}`,
@@ -99,15 +158,39 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
             onOriginChange({ at, source: 'map' });
           }}
         >
-          <TripMapLayer origin={origin?.at ?? null} stops={stopPoints} final={finalPlace} />
+          <TripMapLayer
+            origin={origin?.at ?? null}
+            stops={mapStops}
+            final={finalPlace}
+            legs={shownOrder && !openLeg ? shownOrder.legs : undefined}
+            planPanelOpen={trip.state.status !== 'idle'}
+          />
+          {shownOrder && openLeg && (
+            <JourneyMapLayer journey={openLeg.journey} highlightedLegId={highlightedLegId} focusedStep={focusedStep} />
+          )}
         </BaseMap>
       </div>
 
       <aside
         aria-label="Outing"
-        className="glass absolute left-2 right-2 top-2 z-[500] max-h-[55%] overflow-y-auto p-4 scrollbar-thin sm:left-4 sm:right-auto sm:top-4 sm:w-[360px] lg:bottom-4 lg:max-h-none"
+        className="glass absolute left-2 right-2 top-2 z-[500] max-h-[48%] overflow-y-auto p-4 scrollbar-thin sm:left-4 sm:right-auto sm:top-4 sm:w-[360px] lg:bottom-4 lg:max-h-none"
       >
-        <h1 className="text-xl font-bold">Plan an outing</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl font-bold">Plan an outing</h1>
+          {/* On a narrow screen the plan needs the room, so the inputs fold away under it. */}
+          {trip.state.status !== 'idle' && (
+            <button
+              type="button"
+              onClick={() => setInputsOpen(open => !open)}
+              aria-expanded={inputsOpen}
+              aria-controls="outing-inputs"
+              className="btn-secondary text-xs lg:hidden"
+            >
+              {inputsOpen ? 'Hide' : 'Edit outing'}
+            </button>
+          )}
+        </div>
+        <div id="outing-inputs" className={inputsOpen ? undefined : 'hidden lg:block'}>
         <p className="mt-1 text-xs text-slate-500 leading-relaxed">
           Choose where you start, when you leave and the places you need to visit.
         </p>
@@ -147,7 +230,7 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
 
         <section className="mt-4 space-y-2">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500">Stops</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500">Stops · in your order</h2>
             <span className="text-xs text-slate-500">{draft.stops.length} of {MAX_STOPS}</span>
           </div>
           <OutingStopList
@@ -193,7 +276,83 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
         <p role="status" className="mt-4 text-xs text-slate-500">
           {missing.length > 0 ? `Still needed: ${missing.join(', ')}.` : 'This outing is ready to plan.'}
         </p>
+        <button
+          type="button"
+          onClick={() => { setInputsOpen(false); trip.plan(); }}
+          disabled={!request || trip.state.status === 'planning'}
+          className="btn-primary mt-2 w-full disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {plan ? 'Replan outing' : 'Plan outing'}
+        </button>
+        </div>
       </aside>
+
+      {trip.state.status !== 'idle' && (
+        <aside
+          aria-label="Plan"
+          className="glass absolute left-2 right-2 bottom-2 z-[500] max-h-[46%] overflow-y-auto p-4 scrollbar-thin lg:left-auto lg:right-4 lg:top-4 lg:bottom-4 lg:w-[380px] lg:max-h-none"
+        >
+          {trip.state.status === 'planning' && (
+            <p role="status" className="flex items-center gap-2 text-sm text-slate-600">
+              <Loader2 size={16} className="spinner text-teal-600" aria-hidden="true" />
+              {progressLabel(trip.state.progress)}
+            </p>
+          )}
+
+          {trip.state.status === 'failed' && (
+            <div role="alert" className="outing-warning text-sm">
+              <p>The outing could not be planned: {trip.state.message}</p>
+              <button type="button" onClick={trip.plan} disabled={!request} className="btn-secondary mt-3 text-xs">Try again</button>
+            </div>
+          )}
+
+          {plan && order && (
+            <div className="space-y-4">
+              {trip.outOfDate && (
+                <div role="status" className="rounded-xl border border-amber-300/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+                  The outing has changed since this plan was calculated. The times below are for the earlier version.
+                  <button type="button" onClick={trip.plan} disabled={!request} className="btn-secondary mt-2 block text-xs disabled:opacity-50">Replan outing</button>
+                </div>
+              )}
+
+              {openLeg ? (
+                <>
+                <div>
+                  <h2 className="text-sm font-bold">{openLeg.from.name} → {openLeg.to.name}</h2>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Leave {aroundTime(openLeg.journey.startTimeMs ?? openLeg.readyTime)} · arrive {aroundTime(openLeg.arrivalTime)}
+                  </p>
+                </div>
+                <JourneyDetail
+                  journey={openLeg.journey}
+                  onBack={() => setOpenLegId(null)}
+                  backLabel="Whole outing"
+                  highlightedLegId={highlightedLegId}
+                  onHighlightLeg={setHighlightedLegId}
+                  focusedStep={focusedStep}
+                  onFocusStep={setFocusedStep}
+                />
+                </>
+              ) : (
+                <>
+                  <h2 className="text-lg font-bold">Your outing</h2>
+                  <OrderComparison plan={plan} selectedId={order.id} onSelect={setSelectedOrderId} />
+                  {order.totals && <TripSummary totals={order.totals} />}
+                  <ItineraryTimeline plan={plan} order={order} onOpenLeg={setOpenLegId} />
+                  <details className="planning-disclosure">
+                    <summary>How these times are estimated</summary>
+                    <p>
+                      Journeys are modelled from published timetables and frequencies, with walking on
+                      OpenStreetMap paths. Every time is an estimate, not a scheduled departure. Opening
+                      hours come from OpenStreetMap and may be out of date; confirm with the place.
+                    </p>
+                  </details>
+                </>
+              )}
+            </div>
+          )}
+        </aside>
+      )}
     </div>
   );
 }

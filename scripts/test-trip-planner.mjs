@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { createRequire } from 'node:module';
+import React from 'react';
+import { act, create } from 'react-test-renderer';
 
 const require = createRequire(import.meta.url);
 const Module = require('node:module');
@@ -180,5 +182,42 @@ checks++;
 await assert.rejects(planTrip({ ...base, stops: [stop('A')] }), /2 to 5 stops/);
 checks++;
 
+// AC 2.1.3, 2.4.1 — the hook plans only when asked, ignores a superseded answer, and marks
+// a shown plan out of date when the outing changes instead of recalculating it.
+const pending = [];
+globalThis.__tripPlannerHook = request => new Promise((resolve, reject) => pending.push({ request, resolve, reject }));
+const { useTripPlan } = await load('src/features/trip-planner/hooks/useTripPlan.ts', {
+  '../tripPlanService': 'export const planTrip = request => globalThis.__tripPlannerHook(request);',
+});
+const requestFor = (...stopIds) => ({ ...base, stops: stopIds.map(id => stop(id)) });
+let model;
+let view;
+function Probe({ request }) { model = useTripPlan(request); return null; }
+const first = requestFor('A', 'B');
+await act(async () => { view = create(React.createElement(Probe, { request: first })); });
+check([model.state.status, pending.length], ['idle', 0]);
+await act(async () => model.plan());
+check([model.state.status, pending.length], ['planning', 1]);
+const second = requestFor('B', 'A');
+await act(async () => view.update(React.createElement(Probe, { request: second })));
+check(pending.length, 1);
+await act(async () => model.plan());
+check(pending.length, 2);
+await act(async () => { pending[0].resolve({ request: first, orders: [] }); await pending[0].request; });
+check(model.state.status, 'planning');
+await act(async () => { pending[1].resolve({ request: second, orders: [] }); await pending[1].request; });
+check([model.state.status, model.state.plan.request, model.state.version, model.outOfDate], ['ready', second, 1, false]);
+await act(async () => view.update(React.createElement(Probe, { request: { ...second, stops: [stop('B', undefined, 60), stop('A')] } })));
+check([model.state.status, model.outOfDate, pending.length], ['ready', true, 2]);
+await act(async () => view.update(React.createElement(Probe, { request: null })));
+check(model.outOfDate, true);
+await act(async () => view.update(React.createElement(Probe, { request: second })));
+check(model.outOfDate, false);
+await act(async () => model.plan());
+await act(async () => { pending[2].reject(new Error('Could not reach the journey routing service.')); await pending[2].request; });
+check(model.state, { status: 'failed', message: 'Could not reach the journey routing service.' });
+await act(async () => view.unmount());
+
+delete globalThis.__tripPlannerHook;
 delete globalThis.__tripPlannerEngine;
 console.log(`Trip planner checks passed: ${checks}. Controlled fixtures, not live services.`);

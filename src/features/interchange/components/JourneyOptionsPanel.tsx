@@ -165,9 +165,10 @@ function WalkingDirections({
   );
 }
 
-function JourneyDetail({
+export function JourneyDetail({
   journey,
   onBack,
+  backLabel = 'All journeys',
   highlightedLegId,
   onHighlightLeg,
   focusedStep,
@@ -175,6 +176,8 @@ function JourneyDetail({
 }: {
   journey: ModelledJourney;
   onBack: () => void;
+  /** Epic 2 opens one leg of an outing here, where "all journeys" would name the wrong list. */
+  backLabel?: string;
   highlightedLegId: string | null;
   onHighlightLeg: (legId: string | null) => void;
   focusedStep: WalkStep | null;
@@ -201,7 +204,7 @@ function JourneyDetail({
           className="btn-secondary inline-flex items-center gap-1 text-[11px] py-1.5 px-2"
         >
           <RotateCcw size={12} />
-          All journeys
+          {backLabel}
         </button>
       </div>
 

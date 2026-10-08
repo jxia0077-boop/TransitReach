@@ -13,7 +13,8 @@ import { describeStep, legTitle } from '../interchangeService';
 
 interface Props {
   journey: ModelledJourney;
-  destination: ServiceLocation;
+  /** Omitted by Epic 2, which draws its own numbered stops. */
+  destination?: ServiceLocation;
   /** A leg to emphasise, from Journey Detail; the others are dimmed while it is set. */
   highlightedLegId?: string | null;
   /** A walking step clicked in Journey Detail: the map moves to it and marks the spot. */
@@ -78,7 +79,7 @@ function useFitTo(points: Array<{ lat: number; lon: number }>) {
 }
 
 /** One leg in its mode's style; a bus gets its white casing drawn underneath. */
-function LegPath({
+export function LegPath({
   leg,
   weight,
   opacity,
@@ -125,7 +126,7 @@ function LegPath({
  * alighting stop. Without them a journey's transit is a line with no visible doors — the
  * rider could not tell from the map which stop to wait at.
  */
-function BoardAlightMarkers({ legs }: { legs: JourneyLeg[] }) {
+export function BoardAlightMarkers({ legs }: { legs: JourneyLeg[] }) {
   return (
     <>
       {legs.filter(leg => leg.transitLeg && leg.mode !== 'WALK').map(leg => (
@@ -218,7 +219,7 @@ export function JourneyMapLayer({ journey, destination, highlightedLegId = null,
         );
       })}
 
-      <DestinationMarker destination={destination} />
+      {destination && <DestinationMarker destination={destination} />}
       {focusedStep && <StepFocus step={focusedStep} />}
     </>
   );
