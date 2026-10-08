@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { BusFront, Search } from 'lucide-react';
-import { ServiceDetail, ServiceFilters, ServiceList } from '@/features/essential-services';
+import { ServiceDetail, ServiceFilters, ServiceList, type OutingControls } from '@/features/essential-services';
 import { loadEssentialServicesMetadata } from '@/shared/data/adapters/essentialServicesAdapter';
 import type { ServiceLocation } from '@/shared/types/service';
 import type { MapServicesModel } from './useMapServices';
@@ -17,11 +17,13 @@ export function MapServicesContent({
   hasOrigin,
   onServiceSelect,
   onJourney,
+  outing,
 }: {
   model: MapServicesModel;
   hasOrigin: boolean;
   onServiceSelect?: (service: ServiceLocation) => void;
   onJourney?: (service: ServiceLocation) => void;
+  outing?: OutingControls;
 }) {
   const metadata = loadEssentialServicesMetadata();
   const selectedDetailRef = useRef<HTMLDivElement | null>(null);
@@ -51,7 +53,7 @@ export function MapServicesContent({
       <button className="btn-secondary text-xs" onClick={model.hideDetails}>← Service list</button>
       {model.status === 'loading' && <p role="status" className="text-xs text-slate-500">Updating arrival estimates…</p>}
       {model.status === 'error' && <p role="alert" className="text-xs text-rose-500">Current estimates unavailable.</p>}
-      <ServiceDetail service={model.selected} onJourney={onJourney} onClear={model.clearSelection} />
+      <ServiceDetail service={model.selected} onJourney={onJourney} outing={outing} onClear={model.clearSelection} />
     </div>;
   }
 

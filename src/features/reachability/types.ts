@@ -47,6 +47,8 @@ export interface Journey {
   outing?: import('@/shared/types/service').ServiceLocation[];
   onAddToOuting?: (service: import('@/shared/types/service').ServiceLocation) => void;
   onRemoveFromOuting?: (id: string) => void;
+  /** Opens the Trip Planner with the outing as it stands. */
+  onOpenPlanner?: () => void;
   origin: Origin | null;
   onOriginChange: (origin: Origin | null) => void;
   timeBudget: number;

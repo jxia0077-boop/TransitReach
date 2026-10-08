@@ -72,6 +72,7 @@ function App() {
     outing: outingDraft.stops.map(stop => stop.service),
     onAddToOuting: outingDraft.addStop,
     onRemoveFromOuting: outingDraft.removeStop,
+    onOpenPlanner: () => handleNavigate('planner'),
     origin,
     onOriginChange: setOrigin,
     timeBudget,

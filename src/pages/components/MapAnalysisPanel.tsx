@@ -24,6 +24,7 @@ import { MapServicesContent } from './MapServicesContent';
 import type { MapServicesModel } from './useMapServices';
 import { JourneyOptionsPanel, type JourneyInspectionModel } from '@/features/interchange';
 import type { ServiceLocation } from '@/shared/types/service';
+import type { OutingControls } from '@/features/essential-services';
 import { arrivalAvailability } from '@/features/essential-services/arrivalAvailability';
 
 export type MapAnalysisTab =
@@ -60,6 +61,7 @@ interface MapAnalysisPanelProps {
   journeys: JourneyInspectionModel;
   onServiceSelect: (service: ServiceLocation) => void;
   onJourneyForService: (service: ServiceLocation) => void;
+  outing?: OutingControls;
   hasOrigin: boolean;
 
   activeTab: MapAnalysisTab;
@@ -99,6 +101,7 @@ export function MapAnalysisPanel({
   journeys,
   onServiceSelect,
   onJourneyForService,
+  outing,
   hasOrigin,
   activeTab,
   onTabChange,
@@ -375,6 +378,7 @@ export function MapAnalysisPanel({
               hasOrigin={hasOrigin}
               onServiceSelect={onServiceSelect}
               onJourney={onJourneyForService}
+              outing={outing}
             />
           )}
 

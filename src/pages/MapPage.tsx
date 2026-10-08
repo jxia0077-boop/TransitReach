@@ -47,6 +47,7 @@ import {MapAnalysisPanel,type MapAnalysisTab,} from './components/MapAnalysisPan
 import { useMapServices } from './components/useMapServices';
 import { JourneyLegend, JourneyMapLayer, JourneyPreviewLayer, useJourneyInspection } from '@/features/interchange';
 import type { ServiceLocation } from '@/shared/types/service';
+import { MAX_STOPS } from '@/features/trip-planner';
 import { MapDaylight, malaysiaToday, addDays, periodForecast, forecastCode, useWeatherForecast, weatherKind, WeatherPlanningBar } from './components/WeatherPlanning';
 import { compareCoverage, DepartureComparisonLayer, DepartureComparisonSummary } from './components/DepartureComparison';
 import { WeatherAtmosphere } from './components/WeatherAtmosphere';
@@ -272,6 +273,17 @@ useEffect(() => {
         : null;
   const inspectingJourney = journeyView !== null;
 
+  // AC 7.4.3 — a place inspected here goes into the outing, which the Trip Planner opens
+  // with this screen's starting point and departure.
+  const { outing: outingStops, onAddToOuting, onRemoveFromOuting, onOpenPlanner } = journey;
+  const outing = outingStops && onAddToOuting && onRemoveFromOuting ? {
+    stopIds: outingStops.map(stop => stop.id),
+    full: outingStops.length >= MAX_STOPS,
+    onAdd: onAddToOuting,
+    onRemove: onRemoveFromOuting,
+    onOpenPlanner,
+  } : undefined;
+
   const handleServiceSelect = (service: ServiceLocation) => {
     // Selecting a service keeps the user in the Services tab. The map focuses the
     // selected service and the detail card below provides the explicit Journey action.
@@ -426,6 +438,8 @@ useEffect(() => {
         onServiceSelect={handleServiceSelect}
 
         onJourneyForService={handleJourneyForService}
+
+        outing={outing}
 
         hasOrigin={
           Boolean(reach.origin)
