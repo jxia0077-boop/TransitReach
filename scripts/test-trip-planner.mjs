@@ -159,6 +159,21 @@ check(noPlanReasons(none), [
   'No journey was found from Place B to Place A at the time it would be travelled.',
 ]);
 
+// Stop search — a kind of place lists the closest of that kind; the tag is finer than the category.
+const { matchesKind, nearestFirst, straightLineMetres } = await load('src/features/trip-planner/stopSearch.ts', {
+  '@/shared/data': "export const CATEGORY_META = { food: { label: 'Food & Meals' }, pharmacy: { label: 'Pharmacies' }, bank: { label: 'Banks & ATMs' } };",
+});
+const place = (id, category, sourceCategory, lat) => ({ id, name: `Place ${id}`, category, sourceCategory, lat, lon: 101.6 });
+const cafe = place('cafe', 'food', 'amenity=cafe', 3.12);
+const diner = place('diner', 'food', 'amenity=fast_food', 3.11);
+const chemist = place('chemist', 'pharmacy', 'amenity=pharmacy', 3.2);
+check([cafe, diner, chemist].map(item => matchesKind(item, 'cafe')), [true, false, false]);
+check([cafe, diner, chemist].map(item => matchesKind(item, 'food')), [true, true, false]);
+check([cafe, diner, chemist].map(item => matchesKind(item, 'fast food')), [false, true, false]);
+check([matchesKind(chemist, 'pharmacies'), matchesKind(chemist, 'pharmacy'), matchesKind(chemist, 'ph')], [true, true, false]);
+check(nearestFirst([chemist, cafe, diner], { lat: 3.1, lon: 101.6 }).map(item => item.id), ['diner', 'cafe', 'chemist']);
+check(Math.round(straightLineMetres({ lat: 3.1, lon: 101.6 }, diner)), 1112);
+
 // Five stops: 120 orders considered from 30 pair estimates, at most four calculated.
 const ids = ['A', 'B', 'C', 'D', 'E'];
 const five = {};

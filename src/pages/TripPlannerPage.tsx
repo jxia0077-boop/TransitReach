@@ -244,7 +244,7 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
             onVisitMinutesChange={draft.setVisitMinutes}
           />
           {draft.stops.length < MAX_STOPS ? (
-            <StopSearch near={origin?.at ?? null} addedIds={addedIds} canAdd onAdd={draft.addStop} />
+            <StopSearch near={origin?.at ?? null} addedIds={addedIds} onAdd={draft.addStop} />
           ) : (
             <p className="text-xs text-slate-500">An outing holds up to {MAX_STOPS} stops. Remove one to add another.</p>
           )}
