@@ -17,7 +17,11 @@ function availabilityLabel(visit: PlannedVisit): string {
   return 'Closed on arrival';
 }
 
-function LegRow({ leg, onOpen }: { leg: PlannedLeg; onOpen: (legId: string) => void }) {
+function LegRow({ leg, onOpen, onHighlight }: {
+  leg: PlannedLeg;
+  onOpen: (legId: string) => void;
+  onHighlight: (legId: string | null) => void;
+}) {
   const { journey } = leg;
   const leaveMs = journey.startTimeMs ?? Date.parse(leg.readyTime);
   return (
@@ -25,6 +29,11 @@ function LegRow({ leg, onOpen }: { leg: PlannedLeg; onOpen: (legId: string) => v
       <button
         type="button"
         onClick={() => onOpen(leg.id)}
+        // Pointing at a journey picks its route out on the map, keyboard focus included.
+        onMouseEnter={() => onHighlight(leg.id)}
+        onMouseLeave={() => onHighlight(null)}
+        onFocus={() => onHighlight(leg.id)}
+        onBlur={() => onHighlight(null)}
         aria-label={`Journey from ${leg.from.name} to ${leg.to.name}: show details`}
         className="ml-3 flex w-[calc(100%-0.75rem)] items-center gap-2 border-l-2 border-dashed border-slate-200 py-2 pl-5 pr-1 text-left"
       >
@@ -44,6 +53,7 @@ interface ItineraryTimelineProps {
   plan: TripPlan;
   order: PlannedOrder;
   onOpenLeg: (legId: string) => void;
+  onHighlightLeg: (legId: string | null) => void;
 }
 
 /**
@@ -51,7 +61,7 @@ interface ItineraryTimelineProps {
  * the final destination when one was given. Each journey row opens its leg detail
  * (AC 2.3.2).
  */
-export function ItineraryTimeline({ plan, order, onOpenLeg }: ItineraryTimelineProps) {
+export function ItineraryTimeline({ plan, order, onOpenLeg, onHighlightLeg }: ItineraryTimelineProps) {
   const { request } = plan;
   const stops = new Map(request.stops.map(stop => [stop.service.id, stop]));
   const finalLeg = request.final ? order.legs[order.stopIds.length] : undefined;
@@ -74,7 +84,7 @@ export function ItineraryTimeline({ plan, order, onOpenLeg }: ItineraryTimelineP
         return (
           <li key={id}>
             <ol>
-              <LegRow leg={leg} onOpen={onOpenLeg} />
+              <LegRow leg={leg} onOpen={onOpenLeg} onHighlight={onHighlightLeg} />
               <li className="flex items-start gap-2">
                 <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-teal-600 text-xs font-bold text-white" aria-hidden="true">{index + 1}</span>
                 <div className="min-w-0 flex-1">
@@ -98,7 +108,7 @@ export function ItineraryTimeline({ plan, order, onOpenLeg }: ItineraryTimelineP
       {finalLeg && request.final && (
         <li>
           <ol>
-            <LegRow leg={finalLeg} onOpen={onOpenLeg} />
+            <LegRow leg={finalLeg} onOpen={onOpenLeg} onHighlight={onHighlightLeg} />
             <li className="flex items-start gap-2">
               <Flag size={18} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" />
               <div className="min-w-0">

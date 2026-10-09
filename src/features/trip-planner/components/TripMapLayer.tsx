@@ -21,6 +21,8 @@ interface TripMapLayerProps {
   final: TripPoint | null;
   /** The selected order's journeys, drawn in the same styles as a single journey. */
   legs?: PlannedLeg[];
+  /** The journey under the pointer in the itinerary; the others are dimmed while it is set. */
+  highlightedLegId?: string | null;
   /** Whether the plan panel is on screen, so the outing is framed clear of it. */
   planPanelOpen: boolean;
 }
@@ -43,7 +45,7 @@ function panelPadding(width: number, height: number, planPanelOpen: boolean) {
 }
 
 /** The outing's places on the map, framed together so the whole outing is in view. */
-export function TripMapLayer({ origin, stops, final, legs = NO_LEGS, planPanelOpen }: TripMapLayerProps) {
+export function TripMapLayer({ origin, stops, final, legs = NO_LEGS, highlightedLegId = null, planPanelOpen }: TripMapLayerProps) {
   const map = useMap();
   const framed = useMemo(
     () => [
@@ -68,14 +70,23 @@ export function TripMapLayer({ origin, stops, final, legs = NO_LEGS, planPanelOp
 
   return (
     <>
-      {legs.map(planned => (
+      {legs.map(planned => {
+        const emphasised = planned.id === highlightedLegId;
+        const dimmed = highlightedLegId !== null && !emphasised;
+        return (
         <Fragment key={planned.id}>
           {planned.journey.legs.map(leg => leg.geometry.length < 2 ? null : (
-            <LegPath key={leg.id} leg={leg} weight={leg.mode === 'WALK' ? 4 : 6} opacity={0.95} />
+            <LegPath
+              key={leg.id}
+              leg={leg}
+              weight={(leg.mode === 'WALK' ? 4 : 6) + (emphasised ? 3 : 0)}
+              opacity={dimmed ? 0.3 : 0.95}
+            />
           ))}
           <BoardAlightMarkers legs={planned.journey.legs} />
         </Fragment>
-      ))}
+        );
+      })}
       {stops.map((stop, index) => (
         <Marker
           key={stop.id}

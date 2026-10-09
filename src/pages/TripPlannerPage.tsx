@@ -22,6 +22,7 @@ import {
   TripMapLayer,
   TripSummary,
   aroundTime,
+  outingAsJourney,
   noPlanReasons,
   stopPoint,
   useTripPlan,
@@ -35,6 +36,16 @@ import { loadRailFeedMetadata } from '@/shared/data/adapters/gtfsAdapter';
 import { MapDaylight, addDays, malaysiaToday } from './components/WeatherPlanning';
 
 const OUTSIDE_AREA = 'That point is outside the area the transit data covers.';
+
+/**
+ * Where the 3D view's controls go once the plan panel is on screen. Their own positions
+ * are the map's bottom-right corner and, on a narrow screen, its bottom edge — both under
+ * the panel here. They move to the top of the map, below the folded inputs when narrow.
+ */
+const PLAN_OPEN_3D_CONTROLS = [
+  '[&_.city-view-toggle]:right-auto [&_.city-view-toggle]:bottom-auto [&_.city-view-toggle]:left-1/2 [&_.city-view-toggle]:top-4 [&_.city-view-toggle]:-translate-x-1/2',
+  'max-lg:[&_.city-view-toggle]:top-[84px] max-lg:[&_.city-focus-toolbar]:top-[84px] max-lg:[&_.city-focus-toolbar]:bottom-auto',
+].join(' ');
 
 const FINAL_OPTIONS: Array<{ kind: FinalDestination['kind']; label: string }> = [
   { kind: 'none', label: 'At the last stop' },
@@ -143,6 +154,16 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
     [shownOrder, stopPoints],
   );
 
+  // The 3D view draws one journey. The whole outing is handed to it as one, each leg
+  // under its own id, so the itinerary can pick a leg out; an opened leg replaces it and
+  // the view moves in to that leg, then back out when it is closed.
+  const outingJourney = useMemo(() => shownOrder && outingAsJourney(shownOrder), [shownOrder]);
+  const sceneJourney = shownOrder && openLeg ? openLeg.journey : outingJourney;
+  const waypoints = useMemo(() => [
+    ...mapStops.map((stop, index) => ({ lat: stop.lat, lon: stop.lon, label: `${index + 1}. ${stop.name}` })),
+    ...(finalPlace ? [{ lat: finalPlace.lat, lon: finalPlace.lon, label: `Finish: ${finalPlace.name}` }] : []),
+  ], [mapStops, finalPlace]);
+
   const missing = [
     !origin && 'a starting point',
     draft.stops.length < MIN_STOPS && `${MIN_STOPS - draft.stops.length} more ${MIN_STOPS - draft.stops.length === 1 ? 'stop' : 'stops'}`,
@@ -154,11 +175,15 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
     // than on the night style. `epic7-map` is the scope the 3D view's toolbar rules in
     // index.css are written under; without it "Back to map" sits on top of its neighbour.
     <MapDaylight.Provider value>
-    <div className="epic7-map map-daylight fixed left-0 right-0 top-16 bottom-0 overflow-hidden bg-[#080f18]">
+    <div className={`epic7-map map-daylight fixed left-0 right-0 top-16 bottom-0 overflow-hidden bg-[#080f18] ${trip.state.status !== 'idle' ? PLAN_OPEN_3D_CONTROLS : ''}`}>
       <div className="absolute inset-0">
         <BaseMap
           origin={origin}
           regions={null}
+          journey={sceneJourney}
+          highlightedLegId={highlightedLegId}
+          focusedStep={focusedStep}
+          waypoints={waypoints}
           onMapClick={at => {
             if (!isInStudyArea(at)) {
               setNotice(OUTSIDE_AREA);
@@ -173,6 +198,7 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
             stops={mapStops}
             final={finalPlace}
             legs={shownOrder && !openLeg ? shownOrder.legs : undefined}
+            highlightedLegId={highlightedLegId}
             planPanelOpen={trip.state.status !== 'idle'}
           />
           {shownOrder && openLeg && (
@@ -365,7 +391,7 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
                   <OrderComparison plan={plan} selectedId={order.id} onSelect={setSelectedOrderId} />
                   {/* An order that cannot be completed has a timeline to explain it, not a result. */}
                   {order.feasible && order.totals && <TripSummary totals={order.totals} />}
-                  <ItineraryTimeline plan={plan} order={order} onOpenLeg={setOpenLegId} />
+                  <ItineraryTimeline plan={plan} order={order} onOpenLeg={setOpenLegId} onHighlightLeg={setHighlightedLegId} />
                   <details className="planning-disclosure">
                     <summary>How these times are estimated</summary>
                     <p>

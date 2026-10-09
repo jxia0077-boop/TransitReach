@@ -6,6 +6,7 @@ export type { OutingDraft } from './hooks/useOutingDraft';
 export { StopSearch } from './components/StopSearch';
 export { OutingStopList } from './components/OutingStopList';
 export { TripMapLayer } from './components/TripMapLayer';
+export { outingAsJourney } from './outingScene';
 export { OrderComparison } from './components/OrderComparison';
 export { ItineraryTimeline } from './components/ItineraryTimeline';
 export { TripSummary } from './components/TripSummary';

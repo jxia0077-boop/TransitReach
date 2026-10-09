@@ -19,10 +19,12 @@ interface Props {
   origin: Origin | null;
   regions: IsochroneRegion[] | null;
   coverage?: DepartureCoverage | null;
+  /** Places to label besides the origin and the selected service: an outing's stops. */
+  waypoints?: Array<{ lat: number; lon: number; label: string }>;
 }
 
 /** Native MapLibre scene: the camera and its overlays use the same projection. */
-export function CityFocusView({ service, origin, regions, coverage, journey, highlightedLegId, focusedStep }: Props) {
+export function CityFocusView({ service, origin, regions, coverage, journey, highlightedLegId, focusedStep, waypoints }: Props) {
   const daylight = useContext(MapDaylight);
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -127,8 +129,9 @@ export function CityFocusView({ service, origin, regions, coverage, journey, hig
     const features: GeoJSON.Feature<GeoJSON.Point>[] = [];
     if (origin) features.push({ type: 'Feature', properties: { kind: 'origin', label: 'Starting point' }, geometry: { type: 'Point', coordinates: [origin.at.lon, origin.at.lat] } });
     if (service?.lat !== undefined && service.lon !== undefined) features.push({ type: 'Feature', properties: { kind: 'destination', label: service.name }, geometry: { type: 'Point', coordinates: [service.lon, service.lat] } });
+    for (const point of waypoints ?? []) features.push({ type: 'Feature', properties: { kind: 'waypoint', label: point.label }, geometry: { type: 'Point', coordinates: [point.lon, point.lat] } });
     (map.getSource('location-pins') as GeoJSONSource | undefined)?.setData({ type: 'FeatureCollection', features });
-  }, [origin, service, status, open, lat, lon]);
+  }, [origin, service, waypoints, status, open, lat, lon]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -160,7 +163,7 @@ export function CityFocusView({ service, origin, regions, coverage, journey, hig
     const map = mapRef.current;
     if (!map || !journey || status !== 'ready' || !open) return;
     const points = journey.legs.flatMap(leg => leg.geometry);
-    if (points.length > 1) map.fitBounds([[Math.min(...points.map(p => p.lon)), Math.min(...points.map(p => p.lat))], [Math.max(...points.map(p => p.lon)), Math.max(...points.map(p => p.lat))]], { padding: { top: 220, bottom: 90, left: Math.min(380, map.getContainer().clientWidth / 4), right: Math.min(400, map.getContainer().clientWidth / 4) }, pitch: 50, maxZoom: 17, duration: 700 });
+    if (points.length > 1) map.fitBounds([[Math.min(...points.map(p => p.lon)), Math.min(...points.map(p => p.lat))], [Math.max(...points.map(p => p.lon)), Math.max(...points.map(p => p.lat))]], { padding: { top: 220, bottom: 90, left: Math.min(440, map.getContainer().clientWidth / 3.2), right: Math.min(460, map.getContainer().clientWidth / 3.1) }, pitch: 50, maxZoom: 17, duration: 700 });
   }, [journey, status, open]);
 
   useEffect(() => {

@@ -73,6 +73,8 @@ interface BaseMapProps {
   /** Selected service to focus without leaving the Services tab. */
   selectedService?: ServiceLocation | null;
   onServiceSelect?: (service: ServiceLocation) => void;
+  /** Labelled in the 3D view, where the Leaflet children are not drawn. */
+  waypoints?: Array<{ lat: number; lon: number; label: string }>;
   children?: ReactNode;
 }
 
@@ -308,7 +310,7 @@ function ServicePins({ services, selectedServiceId, onServiceSelect }: Pick<Base
   </>;
 }
 
-export function BaseMap({ origin, regions, coverage, onMapClick, services, selectedServiceId, selectedService, onServiceSelect, children, journey, highlightedLegId, focusedStep }: BaseMapProps) {
+export function BaseMap({ origin, regions, coverage, onMapClick, services, selectedServiceId, selectedService, onServiceSelect, children, journey, highlightedLegId, focusedStep, waypoints }: BaseMapProps) {
   return (
     <div className="city-map-frame" style={{ width: '100%', height: '100%', position: 'relative' }}>
     <MapContainer
@@ -336,7 +338,7 @@ export function BaseMap({ origin, regions, coverage, onMapClick, services, selec
       {children}
       {origin && <OriginPin at={origin.at} onMove={onMapClick} />}
     </MapContainer>
-    <CityFocusView service={selectedService} origin={origin} regions={regions} coverage={coverage} journey={journey} highlightedLegId={highlightedLegId} focusedStep={focusedStep} />
+    <CityFocusView service={selectedService} origin={origin} regions={regions} coverage={coverage} journey={journey} highlightedLegId={highlightedLegId} focusedStep={focusedStep} waypoints={waypoints} />
     </div>
   );
 }
