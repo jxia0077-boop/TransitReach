@@ -32,6 +32,7 @@ import {
   type TripPlanRequest,
 } from '@/features/trip-planner';
 import type { WalkStep } from '@/shared/services/transitRoutingClient';
+import type { ServiceLocation } from '@/shared/types/service';
 import { loadRailFeedMetadata } from '@/shared/data/adapters/gtfsAdapter';
 import { MapDaylight, addDays, malaysiaToday } from './components/WeatherPlanning';
 
@@ -131,6 +132,13 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [openLegId, setOpenLegId] = useState<string | null>(null);
   const [inputsOpen, setInputsOpen] = useState(true);
+  const [previewStop, setPreviewStop] = useState<ServiceLocation | null>(null);
+  const preview = useMemo(
+    () => previewStop && previewStop.lat !== undefined && previewStop.lon !== undefined
+      ? { id: previewStop.id, name: previewStop.name, lat: previewStop.lat, lon: previewStop.lon }
+      : null,
+    [previewStop],
+  );
   const [highlightedLegId, setHighlightedLegId] = useState<string | null>(null);
   const [focusedStep, setFocusedStep] = useState<WalkStep | null>(null);
   // A new plan starts on its shortest order, with no leg open.
@@ -162,7 +170,8 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
   const waypoints = useMemo(() => [
     ...mapStops.map((stop, index) => ({ lat: stop.lat, lon: stop.lon, label: `${index + 1}. ${stop.name}` })),
     ...(finalPlace ? [{ lat: finalPlace.lat, lon: finalPlace.lon, label: `Finish: ${finalPlace.name}` }] : []),
-  ], [mapStops, finalPlace]);
+    ...(preview ? [{ lat: preview.lat, lon: preview.lon, label: preview.name }] : []),
+  ], [mapStops, finalPlace, preview]);
 
   const missing = [
     !origin && 'a starting point',
@@ -199,6 +208,7 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
             final={finalPlace}
             legs={shownOrder && !openLeg ? shownOrder.legs : undefined}
             highlightedLegId={highlightedLegId}
+            preview={preview}
             planPanelOpen={trip.state.status !== 'idle'}
           />
           {shownOrder && openLeg && (
@@ -276,7 +286,7 @@ export function TripPlannerPage({ journey, draft }: TripPlannerPageProps) {
             onVisitMinutesChange={draft.setVisitMinutes}
           />
           {draft.stops.length < MAX_STOPS ? (
-            <StopSearch near={searchFrom} addedIds={addedIds} onAdd={draft.addStop} />
+            <StopSearch near={searchFrom} addedIds={addedIds} onAdd={draft.addStop} onPreview={setPreviewStop} />
           ) : (
             <p className="text-xs text-slate-500">An outing holds up to {MAX_STOPS} stops. Remove one to add another.</p>
           )}

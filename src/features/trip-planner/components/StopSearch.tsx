@@ -17,6 +17,8 @@ interface StopSearchProps {
   near: { name: string; lat: number; lon: number } | null;
   addedIds: ReadonlySet<string>;
   onAdd: (service: ServiceLocation) => void;
+  /** The result under the pointer or keyboard focus, so the map can show where it is. */
+  onPreview: (service: ServiceLocation | null) => void;
 }
 
 /** "amenity=fast_food" → "Fast food". More exact than the category it is filed under. */
@@ -43,7 +45,7 @@ function distanceLabel(metres: number): string {
  * lines and say so; travel times come from the routing engine when the outing is planned
  * (AC 2.2.1).
  */
-export function StopSearch({ near, addedIds, onAdd }: StopSearchProps) {
+export function StopSearch({ near, addedIds, onAdd, onPreview }: StopSearchProps) {
   const [query, setQuery] = useState('');
   const services = useMemo(() => loadEssentialServices(), []);
   const needle = query.trim().toLowerCase();
@@ -74,8 +76,13 @@ export function StopSearch({ near, addedIds, onAdd }: StopSearchProps) {
         <button
           type="button"
           disabled={added}
-          onClick={() => { onAdd(service); setQuery(''); }}
-          className="w-full flex items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          // The row is removed when the search clears, so no leave event follows the click.
+          onClick={() => { onAdd(service); setQuery(''); onPreview(null); }}
+          onMouseEnter={() => onPreview(service)}
+          onMouseLeave={() => onPreview(null)}
+          onFocus={() => onPreview(service)}
+          onBlur={() => onPreview(null)}
+          className="w-full flex items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[#214154] focus-visible:bg-[#214154]disabled:cursor-not-allowed disabled:opacity-60"
         >
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold text-slate-800">{service.name}</span>

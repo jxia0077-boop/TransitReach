@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo } from 'react';
-import { Marker, useMap } from 'react-leaflet';
+import { Marker, Tooltip, useMap } from 'react-leaflet';
 import { divIcon, latLngBounds } from 'leaflet';
 import { BoardAlightMarkers, LegPath } from '@/features/interchange/components/JourneyMapLayer';
 import type { PlannedLeg, TripPoint } from '../types';
@@ -23,6 +23,8 @@ interface TripMapLayerProps {
   legs?: PlannedLeg[];
   /** The journey under the pointer in the itinerary; the others are dimmed while it is set. */
   highlightedLegId?: string | null;
+  /** A search result being considered: shown, and brought into view, before it is added. */
+  preview?: TripPoint | null;
   /** Whether the plan panel is on screen, so the outing is framed clear of it. */
   planPanelOpen: boolean;
 }
@@ -45,7 +47,7 @@ function panelPadding(width: number, height: number, planPanelOpen: boolean) {
 }
 
 /** The outing's places on the map, framed together so the whole outing is in view. */
-export function TripMapLayer({ origin, stops, final, legs = NO_LEGS, highlightedLegId = null, planPanelOpen }: TripMapLayerProps) {
+export function TripMapLayer({ origin, stops, final, legs = NO_LEGS, highlightedLegId = null, preview = null, planPanelOpen }: TripMapLayerProps) {
   const map = useMap();
   const framed = useMemo(
     () => [
@@ -67,6 +69,22 @@ export function TripMapLayer({ origin, stops, final, legs = NO_LEGS, highlighted
     // leaves the user's own panning and zooming alone.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameKey, map]);
+
+  const previewLat = preview?.lat;
+  const previewLon = preview?.lon;
+  useEffect(() => {
+    if (previewLat === undefined || previewLon === undefined) return;
+    // Moves only as far as needed to bring the place out from under the panels; a result
+    // already in view leaves the map where the user put it.
+    const size = map.getSize();
+    const { paddingTopLeft, paddingBottomRight } = panelPadding(size.x, size.y, planPanelOpen);
+    // Room for the name above the pin as well as the pin itself.
+    const room = (padding: [number, number]): [number, number] => [padding[0] + 90, padding[1] + 40];
+    map.panInside([previewLat, previewLon], {
+      paddingTopLeft: room(paddingTopLeft),
+      paddingBottomRight: room(paddingBottomRight),
+    });
+  }, [previewLat, previewLon, planPanelOpen, map]);
 
   return (
     <>
@@ -103,6 +121,18 @@ export function TripMapLayer({ origin, stops, final, legs = NO_LEGS, highlighted
           zIndexOffset={400}
           title={`Finish: ${final.name}`}
         />
+      )}
+      {preview && (
+        // Amber and unnumbered: it is not a stop until it is added.
+        <Marker
+          key={preview.id}
+          position={[preview.lat, preview.lon]}
+          icon={pointIcon('?', '#d97706')}
+          zIndexOffset={1100}
+          interactive={false}
+        >
+          <Tooltip direction="top" offset={[0, -12]} permanent>{preview.name}</Tooltip>
+        </Marker>
       )}
     </>
   );
