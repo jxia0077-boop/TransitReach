@@ -17,10 +17,7 @@ export interface TripPlanController {
   plan: () => void;
 }
 
-/**
- * Everything that changes the journeys; names and other display fields are left out. So is
- * the whole-outing limit: it is a comparison against the result, applied as it is set.
- */
+/** Everything that changes the journeys; names and other display fields are left out. */
 function requestKey(request: TripPlanRequest | null): string | null {
   return request && JSON.stringify([
     request.origin.lat,

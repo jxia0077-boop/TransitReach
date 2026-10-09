@@ -30,14 +30,6 @@ export function journeyModes(journey: ModelledJourney): string {
   return labels.join(' → ');
 }
 
-/** AC 2.4.2 — states the excess; never a bare "within budget" for an outing that is not. */
-export function limitLabel(overSeconds: number, limitMinutes: number): string {
-  const limit = durationLabel(limitMinutes * 60);
-  return overSeconds >= 60
-    ? `Over your ${limit} limit by ${durationLabel(overSeconds)}`
-    : `Within your ${limit} limit`;
-}
-
 /**
  * AC 2.4.3 — why no order works, said once per cause instead of once per order: a place
  * that is closed whenever it would be reached, or a pair of places with no journey.

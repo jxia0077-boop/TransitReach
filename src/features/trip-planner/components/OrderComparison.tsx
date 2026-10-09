@@ -1,11 +1,8 @@
-import { aroundTime, durationLabel, limitLabel, reasonLabel } from '../format';
-import { overLimitSeconds } from '../visitOrder';
+import { aroundTime, durationLabel, reasonLabel } from '../format';
 import type { PlannedOrder, TripPlan } from '../types';
 
 interface OrderComparisonProps {
   plan: TripPlan;
-  /** The whole-outing limit as it is set now, which may be newer than the plan. */
-  limitMinutes: number | null;
   selectedId: string;
   onSelect: (orderId: string) => void;
 }
@@ -20,7 +17,7 @@ interface OrderComparisonProps {
  * AC 2.2.3 — an order that cannot be completed is listed with its reason, never as an
  * option to follow.
  */
-export function OrderComparison({ plan, limitMinutes, selectedId, onSelect }: OrderComparisonProps) {
+export function OrderComparison({ plan, selectedId, onSelect }: OrderComparisonProps) {
   const names = new Map(plan.request.stops.map(stop => [stop.service.id, stop.service.name]));
   const shortest = plan.orders.find(order => order.feasible) ?? null;
 
@@ -35,7 +32,6 @@ export function OrderComparison({ plan, limitMinutes, selectedId, onSelect }: Or
           const extra = shortest && order.feasible && order !== shortest && order.totals && shortest.totals
             ? order.totals.elapsedSeconds - shortest.totals.elapsedSeconds
             : null;
-          const over = order.feasible && order.totals ? overLimitSeconds(order.totals.elapsedSeconds, limitMinutes) : null;
           return (
             <button
               key={order.id}
@@ -76,11 +72,6 @@ export function OrderComparison({ plan, limitMinutes, selectedId, onSelect }: Or
                 </p>
               ) : (
                 <p className="mt-1.5 text-[11px] text-rose-400">{order.reasons.map(reasonLabel).join(' ')}</p>
-              )}
-              {over !== null && limitMinutes !== null && (
-                <p className={`mt-1 text-[11px] font-semibold ${over >= 60 ? 'text-amber-300' : 'text-teal-700'}`}>
-                  {limitLabel(over, limitMinutes)}
-                </p>
               )}
             </button>
           );

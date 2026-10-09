@@ -10,8 +10,11 @@ const MIN_QUERY_LENGTH = 2;
 const MAX_RESULTS = 5;
 
 interface StopSearchProps {
-  /** The starting point: results are the ones closest to it. */
-  near: { lat: number; lon: number } | null;
+  /**
+   * Where the traveller will be when they need the next place: the stop added last, or
+   * the starting point while there are none. Results are the ones closest to it.
+   */
+  near: { name: string; lat: number; lon: number } | null;
   addedIds: ReadonlySet<string>;
   onAdd: (service: ServiceLocation) => void;
 }
@@ -30,8 +33,9 @@ function distanceLabel(metres: number): string {
  * Finds a place to add to the outing.
  *
  * Someone planning errands knows they need a pharmacy, not which pharmacy. Typing a kind
- * of place ("pharmacy", "cafe", "mall") therefore lists the few closest to the starting
- * point; typing a name still finds that place. Either way the user picks the place — the
+ * of place ("pharmacy", "cafe", "mall") therefore lists the few closest to the last stop
+ * they added — an outing that has moved across the city should not be offered a cafe back
+ * by the starting point. Typing a name still finds that place. Either way the user picks the place — the
  * planner does not choose one for them.
  *
  * It searches the service records the app already holds and sends nothing anywhere, the
@@ -54,7 +58,7 @@ export function StopSearch({ near, addedIds, onAdd }: StopSearchProps) {
       ? []
       : services.filter(service => service.name.toLowerCase().includes(needle));
     return {
-      // Without a starting point "closest" has no meaning, so nothing is ranked.
+      // With nowhere to measure from "closest" has no meaning, so nothing is ranked.
       nearest: near ? nearestFirst(ofKind, near).slice(0, MAX_RESULTS) : [],
       named: (near ? nearestFirst(byName, near) : byName.sort((a, b) => a.name.localeCompare(b.name)))
         .slice(0, MAX_RESULTS),
@@ -109,8 +113,8 @@ export function StopSearch({ near, addedIds, onAdd }: StopSearchProps) {
           )}
           {nearest.length > 0 && (
             <section>
-              <h3 className="px-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Closest to your start</h3>
-              <ul className="mt-1 space-y-1" aria-label="Closest to your start">{nearest.map(row)}</ul>
+              <h3 className="px-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">Closest to {near?.name}</h3>
+              <ul className="mt-1 space-y-1" aria-label="Closest places">{nearest.map(row)}</ul>
             </section>
           )}
           {named.length > 0 && (
@@ -124,7 +128,7 @@ export function StopSearch({ near, addedIds, onAdd }: StopSearchProps) {
           )}
           {near && (nearest.length > 0 || named.length > 0) && (
             <p className="px-2.5 text-[11px] text-slate-500">
-              Distances are straight lines from your start. Travel times are worked out when you plan.
+              Distances are straight lines from {near.name}. Travel times are worked out when you plan.
             </p>
           )}
         </div>

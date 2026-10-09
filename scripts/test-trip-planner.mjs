@@ -147,10 +147,8 @@ for (const timezone of ['UTC', 'Asia/Kuala_Lumpur', 'America/New_York']) {
   check(plan.orders[0].visits[0].arrivalTime, '2026-10-10T01:12:00.000Z');
 }
 
-// AC 2.4.2, 2.4.3 — what the result says about a limit, and about an outing nothing fits.
-const { limitLabel, noPlanReasons } = await load('src/features/trip-planner/format.ts');
-check(limitLabel(1800, 60), 'Over your 1 h limit by 30 min');
-check(limitLabel(0, 180), 'Within your 3 h limit');
+// AC 2.4.3 — what the result says about an outing nothing fits.
+const { noPlanReasons } = await load('src/features/trip-planner/format.ts');
 reset({ 'origin>A': 10, 'origin>B': 30, 'A>B': 20 });
 const none = await planTrip({ ...base, stops: [stop('A'), stop('B', 'Mo-Su 06:00-08:00')] });
 check(none.orders.some(order => order.feasible), false);
@@ -236,9 +234,6 @@ await act(async () => { pending[1].resolve({ request: second, orders: [] }); awa
 check([model.state.status, model.state.plan.request, model.state.version, model.outOfDate], ['ready', second, 1, false]);
 await act(async () => view.update(React.createElement(Probe, { request: { ...second, stops: [stop('B', undefined, 60), stop('A')] } })));
 check([model.state.status, model.outOfDate, pending.length], ['ready', true, 2]);
-// The limit is compared against the result as it is set; it does not stale the journeys.
-await act(async () => view.update(React.createElement(Probe, { request: { ...second, limitMinutes: 120 } })));
-check(model.outOfDate, false);
 await act(async () => view.update(React.createElement(Probe, { request: null })));
 check(model.outOfDate, true);
 await act(async () => view.update(React.createElement(Probe, { request: second })));

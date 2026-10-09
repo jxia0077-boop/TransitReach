@@ -12,14 +12,12 @@ export interface OutingDraft {
   /** In the order the user arranged them. */
   stops: OutingStop[];
   final: FinalDestination;
-  limitMinutes: number | null;
   /** Ignored when the place is already a stop, has no coordinates, or the outing is full. */
   addStop: (service: ServiceLocation) => void;
   removeStop: (id: string) => void;
   moveStop: (id: string, offset: -1 | 1) => void;
   setVisitMinutes: (id: string, minutes: number) => void;
   setFinal: (final: FinalDestination) => void;
-  setLimitMinutes: (minutes: number | null) => void;
 }
 
 function isLocated(service: ServiceLocation): service is LocatedService {
@@ -35,7 +33,6 @@ function isLocated(service: ServiceLocation): service is LocatedService {
 export function useOutingDraft(): OutingDraft {
   const [stops, setStops] = useState<OutingStop[]>([]);
   const [final, setFinal] = useState<FinalDestination>({ kind: 'none' });
-  const [limitMinutes, setLimitMinutes] = useState<number | null>(null);
 
   const addStop = useCallback((service: ServiceLocation) => {
     if (!isLocated(service)) return;
@@ -70,12 +67,10 @@ export function useOutingDraft(): OutingDraft {
   return useMemo(() => ({
     stops,
     final,
-    limitMinutes,
     addStop,
     removeStop,
     moveStop,
     setVisitMinutes,
     setFinal,
-    setLimitMinutes,
-  }), [stops, final, limitMinutes, addStop, removeStop, moveStop, setVisitMinutes]);
+  }), [stops, final, addStop, removeStop, moveStop, setVisitMinutes]);
 }
